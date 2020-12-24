@@ -2,10 +2,6 @@
     /*********
     ** Generic translations
     *********/
-    // dates (possible tokens: {{seasonName}}, {{seasonNumber}}, {{dayNumber}}, {{year}})
-    "generic.date": "{{seasonName}} {{dayNumber}}",
-    "generic.date-with-year": "{{seasonName}} {{dayNumber}} im Jahr {{year}}",
-
     // date names
     "generic.now": "jetzt",
     "generic.tomorrow": "morgen",
@@ -32,7 +28,7 @@
     // types
     "type.building": "Gebäude",
     "type.bush": "Busch",
-    "type.fruit-tree": "Fruchtbaum",
+    "type.fruit-tree": "Obstbaum",
     "type.map-tile": "Kartenkachel",
     "type.monster": "Monster",
     "type.player": "Spieler",
@@ -73,11 +69,13 @@
     "shop.marnie": "Marnie",
     "shop.pierre": "Pierre",
     "shop.robin": "Robin",
+    "shop.volcano": "volcano shop", // TODO
     "shop.willy": "Willy",
 
     // recipe types
     "recipe-type.cooking": "Kochen",
     "recipe-type.crafting": "Herstellen",
+    "recipe-type.tailoring": "Schneiderei",
 
     // NPC descriptions
     "data.npc.pet.description": "Dein treues Haustier.",
@@ -134,6 +132,8 @@
     "data.item.topaz-node.description": "Baue sie ab, um Topase zu bekommen.",
 
     // mine ores
+    "data.item.cinder-shard-node.name": "Cinder Shard Node", // TODO
+    "data.item.cinder-shard-node.description": "Break apart to obtain cinder shards.", // TODO
     "data.item.copper-node.name": "Kupferader",
     "data.item.copper-node.description": "Baue sie ab, um Kupfererz zu bekommen.",
     "data.item.gold-node.name": "Goldader",
@@ -142,12 +142,21 @@
     "data.item.iridium-node.description": "Baue sie ab, um Iridiumerz zu bekommen.",
     "data.item.iron-node.name": "Eisenader",
     "data.item.iron-node.description": "Baue sie ab, um Eisenerz zu bekommen.",
+    "data.item.omni-geode-node.name": "Omni Geode Node", // TODO
+    "data.item.omni-geode-node.description": "Break apart to obtain an omni geode.", // TODO
 
     // mine stones
     "data.item.colored-stone.name": "Farbiger Stein",
     "data.item.colored-stone.description": "Ein unscheinbarer Stein. Kann Stein, Erz oder Geoden enthalten.",
     "data.item.mine-stone.name": "Stein",
-    "data.item.mine-stone.description": "Baue ihn ab, um Steine zu bekommen.",
+    "data.item.mine-stone.description": "Break apart to obtain stone with a chance of coal.", // TODO
+
+    // other stones
+    // TODO
+    "data.item.clay-stone.name": "Clay Stone",
+    "data.item.clay-stone.description": "Break apart to obtain clay.",
+    "data.item.fossil-stone.name": "Fossil Stone",
+    "data.item.fossil-stone.description": "Break apart to obtain fossils and bones.",
 
     // mine containers
     "data.item.barrel.name": "Fass",
@@ -156,32 +165,31 @@
     "data.item.box.description": "Zerschlage sie um verschiedenes Gut zu erhalten.",
 
     // location names
-    // TODO
-    "location.backwoods": "backwoods",
-    "location.beach": "beach",
-    "location.beach.east-pier": "beach (eastern pier)",
-    "location.bugLand": "mutant bug lair",
-    "location.busStop": "bus stop",
-    "location.desert": "desert",
-    "location.farm": "farm",
-    "location.farmCave": "farm cave",
-    "location.farmHouse": "farmhouse",
-    "location.forest": "forest",
-    "location.forest.fish-area-0": "forest river",
-    "location.forest.fish-area-1": "forest pond",
-    "location.forest.island-tip": "forest river (south tip of large island)",
-    "location.mountain": "mountain",
-    "location.railroad": "railroad",
-    "location.sewer": "sewers",
-    "location.submarine": "Night Market submarine",
-    "location.town": "town",
-    "location.town.northmost-bridge": "town (northmost bridge)",
-    "location.tunnel": "bus tunnel",
-    "location.undergroundMine": "mines",
-    "location.undergroundMine.level": "mine level {{level}}",
-    "location.witchSwamp": "witch's swamp",
-    "location.woods": "secret woods",
-    "location.unknown-fish-area": "{{locationName}} (fishing area {{id}})",
+    "location.backwoods": "Unentdeckter Wald",
+    "location.beach": "Strand",
+    "location.beach.east-pier": "Strand (östliches Pier)",
+    "location.bugLand": "Mutantenkäferhöhle",
+    "location.busStop": "Bushaltestelle",
+    "location.desert": "Wüste",
+    "location.farm": "Bauernhof",
+    "location.farmCave": "Bauernhof Höhle",
+    "location.farmHouse": "Bauernhaus",
+    "location.forest": "Wald",
+    "location.forest.fish-area-0": "Waldfluss",
+    "location.forest.fish-area-1": "Waldteich",
+    "location.forest.island-tip": "Waldfluss (Südspitze der großen Insel)",
+    "location.mountain": "Berge",
+    "location.railroad": "Eisenbahn",
+    "location.sewer": "Kanalisation",
+    "location.submarine": "Nachtmarkt Tiefsee-U-boot",
+    "location.town": "Stadt",
+    "location.town.northmost-bridge": "Stadt (Nord-östliche Brücke)",
+    "location.tunnel": "Bus Tunnel",
+    "location.undergroundMine": "Mine",
+    "location.undergroundMine.level": "Minen Level {{level}}",
+    "location.witchSwamp": "Hexensumpf",
+    "location.woods": "Geheimnisvolle Wälder",
+    "location.unknown-fish-area": "{{locationName}} (Angelgebiet {{id}})",
 
 
     /*********
@@ -256,8 +264,8 @@
     // values
     "building.fish-pond.population.empty": "Füge einen Fisch hinzu, um den Teich zu starten",
     "building.fish-pond.population.next-spawn": "Neuer Fisch erscheint {{relativeDate}}",
-    "building.fish-pond.drops.preface": "{{chance}}% chance each day of producing the first matched item:", // TODO
-    "building.fish-pond.drops.min-fish": "With {{count}} fish:", // TODO
+    "building.fish-pond.drops.preface": "{{chance}}% Wahrscheinlichkeit jedes Tages, dass das erste passende Produkt produziert wird",
+    "building.fish-pond.drops.min-fish": "Mit {{count}} Fisch:",
     "building.fish-pond.quests.done": "{{count}} Fische",
     "building.fish-pond.quests.incomplete-one": "{{count}} Fische: benötigt {{itemName}}",
     "building.fish-pond.quests.incomplete-random": "{{count}} Fische: benötigt eins von {{itemList}}",
@@ -298,9 +306,9 @@
     // values
     "fruit-tree.complaints.adjacent-objects": "Kann nicht wachsen weil angrenzende Objekte zu nahe sind",
     "fruit-tree.growth.summary": "Ausgewachsen am {{date}}",
-    "fruit-tree.next-fruit.struck-by-lighting": "Wurde von einem Blitz getroffen! Erhohlt sich in {{count}} Tagen.",
-    "fruit-tree.next-fruit.out-of-season": "Außerhalb der Jahreszeit",
     "fruit-tree.next-fruit.max-fruit": "Wird keine neuen Früchte tragen, bis die aktuellen geerntet wurden.",
+    "fruit-tree.next-fruit.out-of-season": "Außerhalb der Jahreszeit",
+    "fruit-tree.next-fruit.struck-by-lightning": "Wurde von einem Blitz getroffen! Erhohlt sich in {{count}} Tagen.",
     "fruit-tree.next-fruit.too-young": "Zu jung um Früchte zu tragen",
     "fruit-tree.quality.now": "{{quality}} jetzt",
     "fruit-tree.quality.on-date": "{{quality}} am {{date}}",
@@ -404,22 +412,20 @@
     ** Item > fish lookups
     *********/
     // labels
-    // TODO
-    "item.fish-pond-drops": "Fish pond drops",
-    "item.fish-spawn-rules": "Spawn rules",
+    "item.fish-pond-drops": "Fischteich Items",
+    "item.fish-spawn-rules": "Spawn Regeln",
 
     // values
-    // TODO
-    "item.fish-spawn-rules.min-fishing-level": "min fishing level: {{level}}",
-    "item.fish-spawn-rules.not-caught-yet": "not caught yet (can only be caught once)",
-    "item.fish-spawn-rules.locations": "locations: {{locations}}",
-    "item.fish-spawn-rules.locations-by-season.label": "locations:",
+    "item.fish-spawn-rules.min-fishing-level": "Mindest Angelstufe: {{level}}",
+    "item.fish-spawn-rules.not-caught-yet": "Noch nicht gefangen (kann nur einmal gefangen werden)",
+    "item.fish-spawn-rules.locations": "Standorte: {{locations}}",
+    "item.fish-spawn-rules.locations-by-season.label": "Standorte:",
     "item.fish-spawn-rules.locations-by-season.season-locations": "{{season}}: {{locations}}",
-    "item.fish-spawn-rules.season-any": "any season",
-    "item.fish-spawn-rules.season-list": "seasons: {{seasons}}",
-    "item.fish-spawn-rules.time": "time of day: {{times}}",
-    "item.fish-spawn-rules.weather-sunny": "weather: sunny",
-    "item.fish-spawn-rules.weather-rainy": "weather: raining",
+    "item.fish-spawn-rules.season-any": "Jede Jahreszeit",
+    "item.fish-spawn-rules.season-list": "Jahreszeiten : {{seasons}}",
+    "item.fish-spawn-rules.time": "Uhrzeit: {{times}}",
+    "item.fish-spawn-rules.weather-sunny": "Wetter: sonnig",
+    "item.fish-spawn-rules.weather-rainy": "Wetter: regnerisch",
 
 
     /*********
@@ -440,6 +446,15 @@
 
 
     /*********
+    ** Item > music block lookups
+    *********/
+    // labels
+    // TODO
+    "item.music-block.pitch": "Pitch",
+    "item.music-block.drum-type": "Drum type",
+
+
+    /*********
     ** Monster lookups
     *********/
     // labels
@@ -453,9 +468,7 @@
 
     // values
     "monster.drops.nothing": "nichts",
-    "monster.adventure-guild.complete": "abgeschlossen",
-    "monster.adventure-guild.incomplete": "in Arbeit",
-    "monster.adventure-guild.progress": "{{count}} von {{requiredCount}} getötet",
+    "monster.adventure-guild.eradication-goal": "Ziele für die Monsterjagd: {{name}} ({{count}} von {{requiredCount}} getötet)",
 
 
     /*********
@@ -547,6 +560,59 @@
 
 
     /*********
+    ** Puzzles
+    *********/
+    // labels
+    // TODO
+    "puzzle.solution": "Solution",
+
+    // values
+    // TODO
+    "puzzle.solution.solved": "Puzzle solved!",
+    "puzzle.solution.hidden": "Puzzle solutions are hidden in progression mode.",
+
+
+    /*********
+    ** Puzzles > Fern Islands crystal cave
+    *********/
+    // labels
+    // TODO
+    "puzzle.island-crystal-cave.title": "Crystal Cave Puzzle",
+    "puzzle.island-crystal-cave.crystal-id": "Crystal ID",
+
+    // values
+    // TODO
+    "puzzle.island-crystal-cave.solution.not-activated": "Activate the statue to start the puzzle.",
+    "puzzle.island-crystal-cave.solution.waiting": "Waiting for game to generate sequence...",
+    "puzzle.island-crystal-cave.solution.activated": "Repeat the pattern of activated crystals:",
+
+
+    /*********
+    ** Tile lookups > Fern Islands mermaid puzzle
+    *********/
+    // labels
+    // TODO
+    "puzzle.island-mermaid.title": "Island Mermaid Puzzle",
+    "puzzle.island-mermaid.solution.intro": "Use flute blocks to play the Night Market mermaid song. Pitch values (you can lookup a flute block to see its pitch):",
+
+
+    /*********
+    ** Puzzles > Fern Islands shrine puzzle
+    *********/
+    // labels
+    // TODO
+    "puzzle.island-shrine.title": "Island Shrine Puzzle",
+    "puzzle.island-shrine.description": "For each pedestal, place the item dropped by gem birds in the corresponding island location when it rains. The items are randomized for each save.",
+
+    // values
+    // TODO
+    "puzzle.island-shrine.solution.east": "East: {{item}}",
+    "puzzle.island-shrine.solution.north": "North: {{item}}",
+    "puzzle.island-shrine.solution.south": "South: {{item}}",
+    "puzzle.island-shrine.solution.west": "West: {{item}}",
+
+
+    /*********
     ** Tile lookups
     *********/
     // labels
@@ -564,11 +630,11 @@
 
 
     /*********
-    ** Trash bear lookups
+    ** Trash Bear or Gourmand lookups
     *********/
     // labels
-    "trash-bear.item-wanted": "Gegenstand benötigt",
-    "trash-bear.quest-progress": "Auftragsfortschritt",
+    "trash-bear-or-gourmand.item-wanted": "Gegenstand benötigt",
+    "trash-bear-or-gourmand.quest-progress": "Auftragsfortschritt",
 
 
     /*********
@@ -581,11 +647,12 @@
     "tree.is-fertilized": "Ist gedüngt",
 
     // values
+    "tree.name.big-mushroom": "Großer Pilz",
+    "tree.name.mahogany": "Mahogany Tree", // TODO
     "tree.name.maple": "Ahornbaum",
     "tree.name.oak": "Eichenbaum",
-    "tree.name.pine": "Tannenbaum",
     "tree.name.palm": "Palme",
-    "tree.name.big-mushroom": "Großer Pilz",
+    "tree.name.pine": "Tannenbaum",
     "tree.name.unknown": "unbekannter Baum",
     "tree.stage.done": "Voll ausgewachsen",
     "tree.stage.partial": "{{stageName}} ({{step}} von {{max}})",

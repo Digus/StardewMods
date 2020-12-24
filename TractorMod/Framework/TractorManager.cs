@@ -4,7 +4,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
-using Microsoft.Xna.Framework.Input;
 using Netcode;
 using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.TractorMod.Framework.Attachments;
@@ -30,23 +29,20 @@ namespace Pathoschild.Stardew.TractorMod.Framework
         /// <summary>The number of ticks between each tractor action check.</summary>
         private readonly int TicksPerAction = 12; // roughly five times per second
 
-        /// <summary>Provides translations from the mod's i18n folder.</summary>
-        private readonly ITranslationHelper Translation;
-
         /// <summary>Simplifies access to private game code.</summary>
         private readonly IReflectionHelper Reflection;
 
         /// <summary>The tractor attachments to apply.</summary>
-        private readonly IAttachment[] Attachments;
+        private IAttachment[] Attachments;
 
         /// <summary>The attachment cooldowns in ticks for each rate-limited attachment.</summary>
-        private readonly IDictionary<IAttachment, int> AttachmentCooldowns;
+        private IDictionary<IAttachment, int> AttachmentCooldowns;
 
         /// <summary>The mod settings.</summary>
-        private readonly ModConfig Config;
+        private ModConfig Config;
 
         /// <summary>The configured key bindings.</summary>
-        private readonly ModConfigKeys Keys;
+        private ModConfigKeys Keys;
 
         /// <summary>The number of ticks since the tractor last checked for an action to perform.</summary>
         private int SkippedActionTicks;
@@ -77,17 +73,12 @@ namespace Pathoschild.Stardew.TractorMod.Framework
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The mod settings.</param>
         /// <param name="keys">The configured key bindings.</param>
-        /// <param name="translation">Provides translations from the mod's i18n folder.</param>
         /// <param name="reflection">Simplifies access to private game code.</param>
-        /// <param name="attachments">The tractor attachments to apply.</param>
-        public TractorManager(ModConfig config, ModConfigKeys keys, ITranslationHelper translation, IReflectionHelper reflection, IEnumerable<IAttachment> attachments)
+        public TractorManager(ModConfig config, ModConfigKeys keys, IReflectionHelper reflection)
         {
             this.Config = config;
             this.Keys = keys;
-            this.Translation = translation;
             this.Reflection = reflection;
-            this.Attachments = attachments.ToArray();
-            this.AttachmentCooldowns = this.Attachments.Where(p => p.RateLimit > this.TicksPerAction).ToDictionary(p => p, p => 0);
         }
 
         /// <summary>Get the unique name for a tractor horse.</summary>
@@ -130,7 +121,7 @@ namespace Pathoschild.Stardew.TractorMod.Framework
         /// <summary>Update tractor effects and actions in the game.</summary>
         public void Update()
         {
-            // update when player mounts or unmounts
+            // update when player mounts or dismounts
             if (this.IsCurrentPlayerRiding != this.WasRiding)
             {
                 this.WasRiding = this.IsCurrentPlayerRiding;
@@ -201,6 +192,25 @@ namespace Pathoschild.Stardew.TractorMod.Framework
             }
         }
 
+        /// <summary>Update mod configuration if it changed.</summary>
+        /// <param name="config">The new mod configuration.</param>
+        /// <param name="keys">The new key bindings.</param>
+        /// <param name="attachments">The tractor attachments to apply.</param>
+        public void UpdateConfig(ModConfig config, ModConfigKeys keys, IEnumerable<IAttachment> attachments)
+        {
+            // update config
+            this.Config = config;
+            this.Keys = keys;
+            this.Attachments = attachments.Where(p => p != null).ToArray();
+            this.AttachmentCooldowns = this.Attachments.Where(p => p.RateLimit > this.TicksPerAction).ToDictionary(p => p, p => 0);
+
+            // clear buff so it's reapplied with new values
+            Game1.buffsDisplay?.otherBuffs?.RemoveAll(p => p.which == this.BuffUniqueID);
+
+            // reset cooldowns
+            this.SkippedActionTicks = 0;
+        }
+
 
         /*********
         ** Private methods
@@ -212,12 +222,11 @@ namespace Pathoschild.Stardew.TractorMod.Framework
                 return false;
 
             // automatic mode
-            if (!this.Config.Controls.HoldToActivate.Any())
+            if (!this.Keys.HoldToActivate.HasAny())
                 return true;
 
             // hold-to-activate mode
-            KeyboardState state = Keyboard.GetState();
-            return this.Keys.HoldToActivate.Any(button => button.TryGetKeyboard(out Keys key) && state.IsKeyDown(key));
+            return this.Keys.HoldToActivate.IsDown();
         }
 
         /// <summary>Apply the tractor buff to the current player.</summary>
@@ -226,7 +235,7 @@ namespace Pathoschild.Stardew.TractorMod.Framework
             Buff buff = Game1.buffsDisplay.otherBuffs.FirstOrDefault(p => p.which == this.BuffUniqueID);
             if (buff == null)
             {
-                buff = new Buff(0, 0, 0, 0, 0, 0, 0, 0, this.Config.MagneticRadius, this.Config.TractorSpeed, 0, 0, 1, "Tractor Power", this.Translation.Get("buff.name")) { which = this.BuffUniqueID };
+                buff = new Buff(0, 0, 0, 0, 0, 0, 0, 0, this.Config.MagneticRadius, this.Config.TractorSpeed, 0, 0, 1, "Tractor Power", I18n.Buff_Name()) { which = this.BuffUniqueID };
                 Game1.buffsDisplay.addOtherBuff(buff);
             }
             buff.millisecondsDuration = 100;
@@ -352,28 +361,14 @@ namespace Pathoschild.Stardew.TractorMod.Framework
         private void GetRadialAdjacentTile(Vector2 origin, Vector2 tile, out Vector2 adjacent, out int facingDirection)
         {
             facingDirection = Utility.getDirectionFromChange(tile, origin);
-            switch (facingDirection)
+            adjacent = facingDirection switch
             {
-                case Game1.up:
-                    adjacent = new Vector2(tile.X, tile.Y + 1);
-                    break;
-
-                case Game1.down:
-                    adjacent = new Vector2(tile.X, tile.Y - 1);
-                    break;
-
-                case Game1.left:
-                    adjacent = new Vector2(tile.X + 1, tile.Y);
-                    break;
-
-                case Game1.right:
-                    adjacent = new Vector2(tile.X - 1, tile.Y);
-                    break;
-
-                default:
-                    adjacent = tile;
-                    break;
-            }
+                Game1.up => new Vector2(tile.X, tile.Y + 1),
+                Game1.down => new Vector2(tile.X, tile.Y - 1),
+                Game1.left => new Vector2(tile.X + 1, tile.Y),
+                Game1.right => new Vector2(tile.X - 1, tile.Y),
+                _ => tile
+            };
         }
 
         /// <summary>Temporarily dismount and set up the player to interact with a tile, then return it to the previous state afterwards.</summary>

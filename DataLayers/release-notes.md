@@ -1,4 +1,47 @@
 # Release notes
+## 1.13.1
+Released 21 December 2020.
+
+* Updated for Stardew Valley 1.5, including...
+  * split-screen mode and UI scaling;
+  * new fertilizer types;
+  * new sprinkler upgrades.
+
+## 1.13
+Released 04 November 2020.
+
+* Added arrow UI to navigate layers.
+* Dropped support for abandoned Cobalt mod.
+
+## 1.12.3
+Released 15 October 2020.
+
+* Refactored translation handling.
+* Improved translations. Thanks to Enaium (updated Chinese) and zhxxn (updated Korean)!
+
+## 1.12.2
+Released 28 August 2020.
+
+* Dead crops are now ignored in the crop fertiliser, harvest, and watered layers.
+
+## 1.12.1
+Released 03 July 2020.
+
+* Improved translations. Thanks to Rittsuka (updated Portuguese)!
+
+## 1.12
+Released 02 May 2020.
+
+* Added tile grid layer (when grid isn't enabled for all layers).
+* Fixed translations not updated after changing language until you restart the game.
+* Improved translations. Thanks to Annosz (added Hungarian), BURAKMESE (added Turkish), D0n-A (updated Russian), and misho104 (updated Japanese)!
+
+## 1.11
+Released 08 March 2020.
+
+* Added support for multi-key bindings (like `LeftShift + F3`).
+* Improved translations. Thanks to Enaium (updated Chinese), kchapelier (updated French), and xCarloC (updated Italian)!
+
 ## 1.10
 Released 01 February 2020.
 

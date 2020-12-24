@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Microsoft.Xna.Framework;
 using StardewValley;
 using StardewValley.Objects;
@@ -25,6 +26,9 @@ namespace Pathoschild.Stardew.Automate.Framework.Storage
         /// <summary>The container name (if any).</summary>
         public string Name => this.Chest.Name;
 
+        /// <summary>The raw mod data for the container.</summary>
+        public ModDataDictionary ModData => this.Chest.modData;
+
         /// <summary>The location which contains the container.</summary>
         public GameLocation Location { get; }
 
@@ -39,11 +43,15 @@ namespace Pathoschild.Stardew.Automate.Framework.Storage
         /// <param name="chest">The underlying chest.</param>
         /// <param name="location">The location which contains the container.</param>
         /// <param name="tile">The tile area covered by the container.</param>
-        public ChestContainer(Chest chest, GameLocation location, Vector2 tile)
+        /// <param name="migrateLegacyOptions">Whether to migrate legacy chest options, if applicable.</param>
+        public ChestContainer(Chest chest, GameLocation location, Vector2 tile, bool migrateLegacyOptions = true)
         {
             this.Chest = chest;
             this.Location = location;
             this.TileArea = new Rectangle((int)tile.X, (int)tile.Y, 1, 1);
+
+            if (migrateLegacyOptions)
+                this.MigrateLegacyOptions();
         }
 
         /// <summary>Store an item stack.</summary>
@@ -51,10 +59,10 @@ namespace Pathoschild.Stardew.Automate.Framework.Storage
         /// <remarks>If the storage can't hold the entire stack, it should reduce the tracked stack accordingly.</remarks>
         public void Store(ITrackedStack stack)
         {
-            if (stack.Count <= 0)
+            if (stack.Count <= 0 || this.Chest.SpecialChestType == Chest.SpecialChestTypes.AutoLoader)
                 return;
 
-            IList<Item> inventory = this.Chest.items;
+            IList<Item> inventory = this.GetInventory();
 
             // try stack into existing slot
             foreach (Item slot in inventory)
@@ -71,18 +79,18 @@ namespace Pathoschild.Stardew.Automate.Framework.Storage
             }
 
             // try add to empty slot
-            for (int i = 0; i < Chest.capacity && i < inventory.Count; i++)
+            int capacity = this.Chest.GetActualCapacity();
+            for (int i = 0; i < capacity && i < inventory.Count; i++)
             {
                 if (inventory[i] == null)
                 {
                     inventory[i] = stack.Take(stack.Count);
                     return;
                 }
-
             }
 
             // try add new slot
-            if (inventory.Count < Chest.capacity)
+            if (inventory.Count < capacity)
                 inventory.Add(stack.Take(stack.Count));
         }
 
@@ -102,28 +110,11 @@ namespace Pathoschild.Stardew.Automate.Framework.Storage
         /// <returns>An enumerator that can be used to iterate through the collection.</returns>
         public IEnumerator<ITrackedStack> GetEnumerator()
         {
-            foreach (Item item in this.Chest.items.ToArray())
+            foreach (Item item in this.GetInventory().ToArray())
             {
-                if (item != null)
-                {
-                    ITrackedStack stack = null;
-                    try
-                    {
-                        stack = this.GetTrackedItem(item);
-                    }
-                    catch (Exception ex)
-                    {
-                        string error = $"Failed to retrieve item #{item.ParentSheetIndex} ('{item.Name}'";
-                        if (item is SObject obj && obj.preservedParentSheetIndex.Value >= 0)
-                            error += $", preserved item #{obj.preservedParentSheetIndex.Value}";
-                        error += $") from container '{this.Chest.Name}' at {this.Location.Name} (tile: {this.TileArea.X}, {this.TileArea.Y}).";
-
-                        throw new InvalidOperationException(error, ex);
-                    }
-
-                    if (stack != null)
-                        yield return stack;
-                }
+                ITrackedStack stack = this.GetTrackedItem(item);
+                if (stack != null)
+                    yield return stack;
             }
         }
 
@@ -138,6 +129,12 @@ namespace Pathoschild.Stardew.Automate.Framework.Storage
         /*********
         ** Private methods
         *********/
+        /// <summary>Get the chest inventory.</summary>
+        private IList<Item> GetInventory()
+        {
+            return this.Chest.GetItemsForPlayer(Game1.player.UniqueMultiplayerID);
+        }
+
         /// <summary>Find items in the pipe matching a predicate.</summary>
         /// <param name="predicate">Matches items that should be returned.</param>
         /// <param name="count">The number of items to find.</param>
@@ -145,12 +142,16 @@ namespace Pathoschild.Stardew.Automate.Framework.Storage
         private IEnumerable<ITrackedStack> GetImpl(Func<Item, bool> predicate, int count)
         {
             int countFound = 0;
-            foreach (Item item in this.Chest.items)
+            foreach (Item item in this.GetInventory())
             {
                 if (item != null && predicate(item))
                 {
+                    ITrackedStack stack = this.GetTrackedItem(item);
+                    if (stack == null)
+                        continue;
+
                     countFound += item.Stack;
-                    yield return this.GetTrackedItem(item);
+                    yield return stack;
                     if (countFound >= count)
                         yield break;
                 }
@@ -161,7 +162,76 @@ namespace Pathoschild.Stardew.Automate.Framework.Storage
         /// <param name="item">The item to track.</param>
         private ITrackedStack GetTrackedItem(Item item)
         {
-            return new TrackedItem(item, onEmpty: i => this.Chest.items.Remove(i));
+            if (item == null)
+                return null;
+
+            try
+            {
+                return new TrackedItem(item, onEmpty: i => this.GetInventory().Remove(i));
+            }
+            catch (KeyNotFoundException)
+            {
+                return null; // invalid/broken item, silently ignore it
+            }
+            catch (Exception ex)
+            {
+                string error = $"Failed to retrieve item #{item.ParentSheetIndex} ('{item.Name}'";
+                if (item is SObject obj && obj.preservedParentSheetIndex.Value >= 0)
+                    error += $", preserved item #{obj.preservedParentSheetIndex.Value}";
+                error += $") from container '{this.Chest.Name}' at {this.Location.Name} (tile: {this.TileArea.X}, {this.TileArea.Y}).";
+
+                throw new InvalidOperationException(error, ex);
+            }
+        }
+
+        /// <summary>Migrate legacy options stored in a chest name.</summary>
+        private void MigrateLegacyOptions()
+        {
+            // get chest name
+            string name = this.Chest.Name;
+            if (name == null || name == "Chest" || !name.Contains("|"))
+                return;
+
+            // get tags
+            MatchCollection matches = Regex.Matches(name, @"\|automate:[a-z\-]*\|");
+            if (matches.Count == 0)
+                return;
+
+            // migrate to mod data
+            void Set(string key, AutomateContainerPreference value) => this.Chest.modData[key] = value.ToString();
+            foreach (Match match in matches)
+            {
+                switch (match.Groups["tag"].Value.ToLower())
+                {
+                    case "noinput":
+                    case "no-store":
+                        Set(AutomateContainerHelper.StoreItemsKey, AutomateContainerPreference.Disable);
+                        break;
+
+                    case "output":
+                    case "prefer-store":
+                        Set(AutomateContainerHelper.StoreItemsKey, AutomateContainerPreference.Prefer);
+                        break;
+
+                    case "nooutput":
+                    case "no-take":
+                        Set(AutomateContainerHelper.TakeItemsKey, AutomateContainerPreference.Disable);
+                        break;
+
+                    case "input":
+                    case "prefer-take":
+                        Set(AutomateContainerHelper.TakeItemsKey, AutomateContainerPreference.Prefer);
+                        break;
+
+                    case "ignore":
+                        Set(AutomateContainerHelper.StoreItemsKey, AutomateContainerPreference.Disable);
+                        Set(AutomateContainerHelper.TakeItemsKey, AutomateContainerPreference.Disable);
+                        break;
+                }
+
+                name = name.Replace(match.Value, "");
+            }
+            this.Chest.Name = name.Trim();
         }
     }
 }

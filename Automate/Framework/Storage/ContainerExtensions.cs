@@ -1,4 +1,4 @@
-using System;
+using StardewValley;
 
 namespace Pathoschild.Stardew.Automate.Framework.Storage
 {
@@ -12,48 +12,67 @@ namespace Pathoschild.Stardew.Automate.Framework.Storage
         /// <param name="container">The container instance.</param>
         public static bool StorageAllowed(this IContainer container)
         {
-            return !container.ShouldIgnore() && !container.HasTag("automate:nooutput");
+            return container.IsAllowed(AutomateContainerHelper.StoreItemsKey);
         }
 
         /// <summary>Get whether this container should be preferred when choosing where to store items.</summary>
         /// <param name="container">The container instance.</param>
         public static bool StoragePreferred(this IContainer container)
         {
-            return container.StorageAllowed() && container.HasTag("automate:output");
+            return container.IsPreferred(AutomateContainerHelper.StoreItemsKey);
         }
 
         /// <summary>Get whether items can be retrieved from this container.</summary>
         /// <param name="container">The container instance.</param>
         public static bool TakingItemsAllowed(this IContainer container)
         {
-            return !container.ShouldIgnore() && !container.HasTag("automate:noinput");
+            return container.IsAllowed(AutomateContainerHelper.TakeItemsKey);
         }
 
         /// <summary>Get whether this container should be preferred when choosing where to retrieve items.</summary>
         /// <param name="container">The container instance.</param>
         public static bool TakingItemsPreferred(this IContainer container)
         {
-            return container.TakingItemsAllowed() && container.HasTag("automate:input");
+            return container.IsPreferred(AutomateContainerHelper.TakeItemsKey);
         }
 
 
         /*********
         ** Private methods
         *********/
-        /// <summary>Get whether the container name contains a given tag.</summary>
+        /// <summary>Get whether a container preference is allowed.</summary>
         /// <param name="container">The container instance.</param>
-        /// <param name="tag">The tag to check, excluding the '|' delimiters.</param>
-        private static bool HasTag(this IContainer container, string tag)
+        /// <param name="key">The dictionary key to read.</param>
+        private static bool IsAllowed(this IContainer container, string key)
         {
-            return container.Name?.IndexOf($"|{tag}|", StringComparison.InvariantCultureIgnoreCase) >= 0;
+            return container.ModData
+                .ReadPreferenceField(key)
+                .IsAllowed();
         }
 
-        /// <summary>Get whether this container should be preferred for output when possible.</summary>
+        /// <summary>Get whether a container preference is preferred.</summary>
         /// <param name="container">The container instance.</param>
-        private static bool ShouldIgnore(this IContainer container)
+        /// <param name="key">The dictionary key to read.</param>
+        private static bool IsPreferred(this IContainer container, string key)
         {
-            // legacy tag no longer set as of Chests Anywhere 1.17.3, but some players may still have it in their save
-            return container.HasTag("automate:ignore");
+            return container.ModData
+                .ReadPreferenceField(key)
+                .IsPreferred();
+        }
+
+        /// <summary>Read a container preference from a mod data dictionary.</summary>
+        /// <param name="data">The mod data dictionary to read.</param>
+        /// <param name="key">The dictionary key to read.</param>
+        private static AutomateContainerPreference ReadPreferenceField(this ModDataDictionary data, string key)
+        {
+            data.TryGetValue(key, out string rawValue);
+            return rawValue switch
+            {
+                nameof(AutomateContainerPreference.Allow) => AutomateContainerPreference.Allow,
+                nameof(AutomateContainerPreference.Prefer) => AutomateContainerPreference.Prefer,
+                nameof(AutomateContainerPreference.Disable) => AutomateContainerPreference.Disable,
+                _ => AutomateContainerPreference.Allow
+            };
         }
     }
 }

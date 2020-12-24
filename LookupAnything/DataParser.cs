@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
+using Pathoschild.Stardew.Common;
+using Pathoschild.Stardew.Common.Items.ItemData;
 using Pathoschild.Stardew.LookupAnything.Framework;
 using Pathoschild.Stardew.LookupAnything.Framework.Constants;
 using Pathoschild.Stardew.LookupAnything.Framework.Data;
@@ -42,7 +44,7 @@ namespace Pathoschild.Stardew.LookupAnything
         /// <remarks>Derived from the <see cref="StardewValley.Locations.CommunityCenter"/> constructor and <see cref="StardewValley.Menus.JunimoNoteMenu.openRewardsMenu"/>.</remarks>
         public IEnumerable<BundleModel> GetBundles()
         {
-            IDictionary<string, string> data = Game1.content.Load<Dictionary<string, string>>("Data\\Bundles");
+            IDictionary<string, string> data = Game1.netWorldState.Value.BundleData;
             foreach (var entry in data)
             {
                 // parse key
@@ -486,7 +488,7 @@ namespace Pathoschild.Stardew.LookupAnything
                 try
                 {
                     var recipe = new CraftingRecipe(entry.Key, entry.IsCookingRecipe);
-                    recipes.Add(new RecipeModel(recipe, reflectionHelper));
+                    recipes.Add(new RecipeModel(recipe));
                 }
                 catch (Exception ex)
                 {
@@ -510,7 +512,8 @@ namespace Pathoschild.Stardew.LookupAnything
                     minOutput: entry.MinOutput,
                     maxOutput: entry.MaxOutput,
                     outputChance: entry.OutputChance,
-                    isForMachine: p => p is SObject obj && obj.ParentSheetIndex == entry.MachineID
+                    machineParentSheetIndex: entry.MachineID,
+                    isForMachine: p => p is SObject obj && obj.GetItemType() == ItemType.BigCraftable && obj.ParentSheetIndex == entry.MachineID
                 )
             );
 
@@ -528,6 +531,7 @@ namespace Pathoschild.Stardew.LookupAnything
                     outputItemIndex: entry.Output,
                     minOutput: entry.OutputCount ?? 1,
                     exceptIngredients: entry.ExceptIngredients?.Select(p => new RecipeIngredientModel(p, 1)),
+                    machineParentSheetIndex: null,
                     isForMachine: p => p is Building target && target.buildingType.Value == entry.BuildingKey
                 )
             );

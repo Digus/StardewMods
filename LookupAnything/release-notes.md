@@ -1,6 +1,126 @@
 [← back to readme](README.md)
 
 # Release notes
+## 1.29
+Released 21 December 2020.
+
+* Updated for Stardew Valley 1.5, including support for...
+  * split-screen mode and UI scaling;
+  * new content;
+  * island puzzle lookups (crystal cave, field office, Gourmand, mermaid puzzle, and shrine puzzle);
+  * new chest types.
+* Fixed some untranslated text.
+* Fixed NPC lookups not showing social info for some custom mod NPCs.
+* Improved translations. Thanks to spindensity (updated Chinese)!
+
+## 1.28.3
+Released 05 December 2020.
+
+* Moved `data.json` into standard `assets` folder.
+* Fixed crop fields shown for forage crops.
+* Fixed item lookups no longer showing iridium or stack prices.
+
+## 1.28.2
+Released 21 November 2020.
+
+* Fixed search UI lookups for certain item types causing an error.
+
+## 1.28.1
+Released 04 November 2020.
+
+* Fixed 'number owned' field sometimes counting two of the same tool/weapon as different items.
+* Fixed lookups on forage items.
+* Fixed search UI lookups on flavored items like wines showing incorrect prices.
+* Fixed search UI not showing Clam Roe, Sea Urchin Roe, and custom roe from mods.
+* Fixed some translation issues in 1.28.
+* Improved translations. Thanks to Caco-o-sapo (updated Portuguese) and therealmate (updated Hungarian)!
+
+## 1.28
+Released 15 October 2020.
+
+* Added music block lookups.
+* Improved Adventurer's Guild eradication goal info in monster lookups.
+* Fixed spawned stones sometimes showing info for a different item.
+* Fixed description for some generic spawned stones.
+* Fixed Scorpion Carp showing 'contents: no' field.
+* Refactored to prepare for future game updates.
+* Refactored translation handling.
+* Improved translations. Thanks to Enaium (updated Chinese), Macskasajt05 (added Hungarian), and zhxxn (updated Korean)!
+
+## 1.27.5
+Released 28 August 2020.
+
+* Improved translations. Thanks to wally232 on Nexus (updated Korean)!
+
+## 1.27.4
+Released 02 August 2020.
+
+* Fixed string sorting/comparison for some special characters.
+
+## 1.27.3
+Released 21 July 2020.
+
+* Fixed error looking up items when some item data is invalid.
+* Fixed incorrect color for sturgeon roe image.
+
+## 1.27.2
+Released 03 July 2020.
+
+* Fixed display for tailored hat recipes.
+* Fixed the search key working during cutscenes or when a menu is already open.
+* Fixed spawn rules not showing "mine level X" matched when you're on that mine level.
+* Fixed error looking up custom NPCs with invalid birthday data.
+* Improved translations. Thanks to AndyAllanPoe (updated Italian) and Rittsuka (updated Portuguese)!
+
+## 1.27.1
+Released 02 May 2020.
+
+* Fixed compatibility issue with Mega Storage in 1.27.
+
+## 1.27
+Released 02 May 2020.
+
+* The lookup menu is now centered again. (It will fallback to non-centered mode only if needed for compatibility.)
+* Improved compatibility with custom NPC mods (including mods which replace non-social NPCs with social ones).
+* Improved item scanning (used for 'number owned' and gift taste fields):
+  * now includes nested items (e.g. chests in chests in chests);
+  * now includes tool attachments;
+  * now searches within some mod containers (e.g. bags);
+  * fixed some spawned items incorrectly counted as owned (e.g. weeds and stones).
+* Improved debug field formatting for `npc.currentMarriageDialogue`.
+* Fixed 'number crafted' including some incorrect recipes.
+* Fixed placed and held torches counted as different items.
+* Fixed cursor incorrectly detected on Android in some cases.
+* Fixed rare 'scissor rectangle is invalid' error with search menu.
+* Fixed issue where closing the search menu with the default key bindings could trigger a lookup after the menu closes.
+* Improved translations. Thanks to Andites (updated Russian) and niniack (updated Chinese)!
+
+## 1.26
+Released 09 March 2020.
+
+* Added search feature (thanks to collaboration with mattfeldman!).
+* Added support for multi-key bindings (like `LeftShift + F1`).
+* Added contextual lookups for better controller/mobile support:
+  * When there's no cursor (e.g. when playing with a controller or mobile), Lookup Anything automatically finds the most relevant match instead of looking under the cursor. For example, that may be what's in front of the player, the item picked up in a menu, etc.
+  * Added item lookup when holding an item in a chest/inventory menu.
+  * Added NPC lookup from their profile page (when the cursor isn't over an item).
+  * Added player lookup from the skills tab.
+  * Removed `ToggleLookupInFrontOfPlayer` option in `config.json`. If you edited it, your value will be merged into `ToggleLookup` automatically next time you launch the game.
+* Fixed some vanilla recipes not shown in lookups when Producer Framework Mod packs are installed.
+* Improved translations. Thanks to Jeardius (updated German), Hesper (updated Korean), and mael-belval (updated French)!
+
+## 1.25.2
+Released 03 February 2020.
+
+* Fixed 'needed for' shown for incorrect item types in some cases.
+* Fixed some Producer Framework Mod recipes not shown correctly.
+
+## 1.25.1
+Released 02 February 2020.
+
+* Errors in Producer Framework Mod integration can no longer break lookups.
+* Fixed errors reading some Producer Framework Mod recipes.
+
 ## 1.25
 Released 01 February 2020.
 

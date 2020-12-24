@@ -5,6 +5,7 @@ using SObject = StardewValley.Object;
 namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
 {
     /// <summary>A soda machine that accepts input and provides output.</summary>
+    /// <remarks>Derived from <see cref="SObject.DayUpdate"/> (search for 'case 117').</remarks>
     internal class SodaMachine : GenericObjectMachine<SObject>
     {
         /*********
@@ -15,7 +16,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
         /// <param name="location">The location containing the machine.</param>
         /// <param name="tile">The tile covered by the machine.</param>
         public SodaMachine(SObject machine, GameLocation location, Vector2 tile)
-            : base(machine, location, tile) { }
+            : base(machine, location, tile, machineTypeId: "SodaMachine") { }
 
         /// <summary>Get the machine's processing state.</summary>
         public override MachineState GetState()

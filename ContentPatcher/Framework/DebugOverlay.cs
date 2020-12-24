@@ -43,8 +43,9 @@ namespace ContentPatcher.Framework
         /// <param name="events">The SMAPI events available for mods.</param>
         /// <param name="inputHelper">An API for checking and changing input state.</param>
         /// <param name="contentHelper">The content helper from which to read textures.</param>
-        public DebugOverlay(IModEvents events, IInputHelper inputHelper, IContentHelper contentHelper)
-            : base(events, inputHelper)
+        /// <param name="reflection">Simplifies access to private code.</param>
+        public DebugOverlay(IModEvents events, IInputHelper inputHelper, IContentHelper contentHelper, IReflectionHelper reflection)
+            : base(events, inputHelper, reflection)
         {
             this.Content = contentHelper;
             this.TextureNames = this.GetTextureNames(contentHelper).OrderByIgnoreCase(p => p).ToArray();
@@ -77,7 +78,7 @@ namespace ContentPatcher.Framework
         *********/
         /// <summary>Draw to the screen.</summary>
         /// <param name="spriteBatch">The sprite batch to which to draw.</param>
-        protected override void Draw(SpriteBatch spriteBatch)
+        protected override void DrawUi(SpriteBatch spriteBatch)
         {
             Vector2 labelSize = Game1.smallFont.MeasureString(this.CurrentName);
             int contentWidth = (int)Math.Max(labelSize.X, this.CurrentTexture?.Width ?? 0);
@@ -99,7 +100,7 @@ namespace ContentPatcher.Framework
             IList<string> textureKeys = new List<string>();
             contentHelper.InvalidateCache(asset =>
             {
-                if (asset.DataType == typeof(Texture2D) && !asset.AssetName.Contains("..") && !asset.AssetName.StartsWith(StardewModdingAPI.Constants.ExecutionPath))
+                if (typeof(Texture2D).IsAssignableFrom(asset.DataType) && !asset.AssetName.Contains("..") && !asset.AssetName.StartsWith(StardewModdingAPI.Constants.ExecutionPath))
                     textureKeys.Add(asset.AssetName);
                 return false;
             });

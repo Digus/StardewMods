@@ -25,16 +25,16 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         ** Public methods
         *********/
         /// <summary>Construct an instance.</summary>
-        /// <param name="translations">Provides translations in stored in the mod folder's i18n folder.</param>
         /// <param name="config">The data layer settings.</param>
+        /// <param name="input">The API for checking input state.</param>
         /// <param name="monitor">Writes messages to the SMAPI log.</param>
-        public CropWaterLayer(ITranslationHelper translations, LayerConfig config, IMonitor monitor)
-            : base(translations.Get("crop-water.name"), config, monitor)
+        public CropWaterLayer(LayerConfig config, IInputHelper input, IMonitor monitor)
+            : base(I18n.CropWater_Name(), config, input, monitor)
         {
             this.Legend = new[]
             {
-               this.Watered = new LegendEntry(translations, "crop-water.watered", Color.Green),
-               this.Dry = new LegendEntry(translations, "crop-water.dry", Color.Red)
+               this.Watered = new LegendEntry(I18n.Keys.CropWater_Watered, Color.Green),
+               this.Dry = new LegendEntry(I18n.Keys.CropWater_Dry, Color.Red)
             };
         }
 
@@ -78,7 +78,7 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
             foreach (Vector2 tile in visibleTiles)
             {
                 HoeDirt dirt = this.GetDirt(location, tile);
-                if (dirt?.crop != null && dirt.state.Value == state)
+                if (dirt?.crop != null && !this.IsDeadCrop(dirt) && dirt.state.Value == state)
                     yield return tile;
             }
         }

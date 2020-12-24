@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Xna.Framework;
 using StardewValley;
 using StardewValley.Objects;
@@ -7,23 +7,9 @@ using SObject = StardewValley.Object;
 namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
 {
     /// <summary>A cask that accepts input and provides output.</summary>
+    /// <remarks>Derived from <see cref="Cask"/>.</remarks>
     internal class CaskMachine : GenericObjectMachine<Cask>
     {
-        /*********
-        ** Fields
-        *********/
-        /// <summary>The items which can be aged in a cask with their aging rates.</summary>
-        private readonly IDictionary<int, float> AgingRates = new Dictionary<int, float>
-        {
-            [424] = 4, // cheese
-            [426] = 4, // goat cheese
-            [459] = 2, // mead
-            [303] = 1.66f, // pale ale
-            [346] = 2, // beer
-            [348] = 1 // wine
-        };
-
-
         /*********
         ** Public methods
         *********/
@@ -62,27 +48,18 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
         {
             Cask cask = this.Machine;
 
-            if (input.TryGetIngredient(match => match.Type == ItemType.Object && (match.Sample as SObject)?.Quality < 4 && this.AgingRates.ContainsKey(match.Sample.ParentSheetIndex), 1, out IConsumable consumable))
+            foreach (ITrackedStack consumable in input.GetItems().Where(match => match.Type == ItemType.Object && (match.Sample as SObject)?.Quality < SObject.bestQuality))
             {
-                SObject ingredient = (SObject)consumable.Take();
+                float agingRate = cask.GetAgingMultiplierForItem(consumable.Sample);
+                if (agingRate <= 0)
+                    continue;
+
+                SObject ingredient = (SObject)consumable.Take(1);
 
                 cask.heldObject.Value = ingredient;
-                cask.agingRate.Value = this.AgingRates[ingredient.ParentSheetIndex];
-                cask.daysToMature.Value = 56;
                 cask.MinutesUntilReady = 999999;
-                switch (ingredient.Quality)
-                {
-                    case SObject.medQuality:
-                        cask.daysToMature.Value = 42;
-                        break;
-                    case SObject.highQuality:
-                        cask.daysToMature.Value = 28;
-                        break;
-                    case SObject.bestQuality:
-                        cask.daysToMature.Value = 0;
-                        cask.MinutesUntilReady = 1;
-                        break;
-                }
+                cask.agingRate.Value = agingRate;
+                cask.daysToMature.Value = cask.GetDaysForQuality(ingredient.Quality);
 
                 return true;
             }

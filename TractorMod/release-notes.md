@@ -1,4 +1,57 @@
 # Release notes
+## Upcoming release
+* Fixed tractor not summonable if it's currently in the volcano dungeon.
+
+## 4.12.1
+Released 21 December 2020.
+
+* Updated for Stardew Valley 1.5, including split-screen mode and UI scaling.
+
+## 4.12
+Released 05 December 2020.
+
+* The pickaxe now collects spawned mine items like quartz.
+* The scythe now harvests palm tree coconuts and tree seeds.
+* Fixed scythe harvesting spring onions based on 'harvest crops' option instead of 'harvest forage'.
+
+## 4.11.3
+Released 15 October 2020.
+
+* Refactored translation handling.
+
+## 4.11.2
+Released 12 September 2020.
+
+* Fixed error in some cases when a multiplayer farmhand warps while riding a tractor.
+
+## 4.11.1
+Released 28 August 2020.
+
+* Fixed incorrectly mapped options in Generic Mod Config Menu.
+
+## 4.11
+Released 04 July 2020.
+
+* You can now configure the mod in-game if you have [Generic Mod Config Menu](https://www.nexusmods.com/stardewvalley/mods/5098) installed (thanks to collaboration with NexusFlight!).
+* Added compatibility with boulders and stumps added by Farm Type Manager.
+* Fixed warp loop when riding the tractor onto the Witch's Hut warp runes.
+* Fixed broken event when riding the tractor into the event for the Cryptic Note quest.
+
+## 4.10.1
+Released 02 May 2020.
+
+* Improved translations. Thanks to D0n-A (updated Russian)!
+
+## 4.10
+Released 09 March 2020.
+
+* Added support for multi-key bindings (like `LeftShift + BackSpace`).
+* Fixed slingshot enabled by default.
+* Fixed scythe not harvesting bushes in garden pots.
+* Fixed tea bushes affected by `HarvestForage` option instead of `HarvestCrops`.
+* Fixed compatibility with Yet Another Harvest With Scythe Mod (thanks to bcmpinc!).
+* Improved translations. Thanks to therealmate (added Hungarian)!
+
 ## 4.9.2
 Released 01 February 2020.
 

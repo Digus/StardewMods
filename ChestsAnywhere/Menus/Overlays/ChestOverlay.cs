@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Pathoschild.Stardew.ChestsAnywhere.Framework;
 using Pathoschild.Stardew.ChestsAnywhere.Menus.Components;
+using Pathoschild.Stardew.Common.UI;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -42,10 +43,10 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
         /// <param name="keys">The configured key bindings.</param>
         /// <param name="events">The SMAPI events available for mods.</param>
         /// <param name="input">An API for checking and changing input state.</param>
-        /// <param name="translations">Provides translations stored in the mod's folder.</param>
+        /// <param name="reflection">Simplifies access to private code.</param>
         /// <param name="showAutomateOptions">Whether to show Automate options.</param>
-        public ChestOverlay(ItemGrabMenu menu, ManagedChest chest, ManagedChest[] chests, ModConfig config, ModConfigKeys keys, IModEvents events, IInputHelper input, ITranslationHelper translations, bool showAutomateOptions)
-            : base(menu, chest, chests, config, keys, events, input, translations, showAutomateOptions, keepAlive: () => Game1.activeClickableMenu is ItemGrabMenu, topOffset: -Game1.pixelZoom * 9)
+        public ChestOverlay(ItemGrabMenu menu, ManagedChest chest, ManagedChest[] chests, ModConfig config, ModConfigKeys keys, IModEvents events, IInputHelper input, IReflectionHelper reflection, bool showAutomateOptions)
+            : base(menu, chest, chests, config, keys, events, input, reflection, showAutomateOptions, keepAlive: () => Game1.activeClickableMenu is ItemGrabMenu, topOffset: -Game1.pixelZoom * 9)
         {
             this.Menu = menu;
             this.MenuInventoryMenu = menu.ItemsToGrabMenu;
@@ -65,7 +66,6 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
         {
             if (this.IsInitialized)
             {
-
                 switch (this.ActiveElement)
                 {
                     case Element.EditForm:
@@ -75,11 +75,18 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
 
                     default:
                         bool canNavigate = this.CanCloseChest;
-                        if (canNavigate && this.Menu.okButton.containsPoint(x, y))
+
+                        // handle exit
+                        // (This fixes an issue where the game doesn't handle it correctly in some contexts, like the
+                        // Stardew Valley Fair fishing minigame. Note that the button may be null if removed by a mod like
+                        // ChestEx.)
+                        if (canNavigate && this.Menu.okButton?.containsPoint(x, y) == true)
                         {
-                            this.Exit(); // in some cases the game won't handle this correctly (e.g. Stardew Valley Fair fishing minigame)
+                            this.Exit();
                             return true;
                         }
+
+                        // handle sort
                         else if (this.SortInventoryButton?.containsPoint(x, y) == true)
                         {
                             this.SortInventory();
@@ -107,9 +114,9 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
             return base.ReceiveCursorHover(x, y);
         }
 
-        /// <summary>Draw the overlay to the screen.</summary>
+        /// <summary>Draw the overlay to the screen over the UI.</summary>
         /// <param name="batch">The sprite batch being drawn.</param>
-        protected override void Draw(SpriteBatch batch)
+        protected override void DrawUi(SpriteBatch batch)
         {
             if (!this.ActiveElement.HasFlag(Element.EditForm))
             {
@@ -117,7 +124,7 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
                 this.SortInventoryButton?.draw(batch, Color.White * navOpacity, 1f);
             }
 
-            base.Draw(batch); // run base logic last, to draw cursor over everything else
+            base.DrawUi(batch); // run base logic last, to draw cursor over everything else
         }
 
         /// <summary>Initialize the edit-chest overlay for rendering.</summary>
@@ -133,7 +140,7 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
                 ClickableTextureComponent okButton = this.Menu.okButton;
                 float zoom = Game1.pixelZoom;
                 Rectangle buttonBounds = new Rectangle(okButton.bounds.X, (int)(okButton.bounds.Y - sprite.Height * zoom - 5 * zoom), (int)(sprite.Width * zoom), (int)(sprite.Height * zoom));
-                this.SortInventoryButton = new ClickableTextureComponent("sort-inventory", buttonBounds, null, this.Translations.Get("button.sort-inventory"), Sprites.Icons.Sheet, sprite, zoom);
+                this.SortInventoryButton = new ClickableTextureComponent("sort-inventory", buttonBounds, null, I18n.Button_SortInventory(), CommonSprites.Icons.Sheet, sprite, zoom);
 
                 // adjust menu to fit
                 this.Menu.trashCan.bounds.Y = this.SortInventoryButton.bounds.Y - this.Menu.trashCan.bounds.Height - 2 * Game1.pixelZoom;

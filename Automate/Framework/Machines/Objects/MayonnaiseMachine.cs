@@ -5,7 +5,7 @@ using SObject = StardewValley.Object;
 namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
 {
     /// <summary>A mayonnaise that accepts input and provides output.</summary>
-    /// <remarks>Derived from <see cref="SObject.performObjectDropInAction"/>.</remarks>
+    /// <remarks>Derived from <see cref="SObject.performObjectDropInAction"/> (search for 'Mayonnaise Machine').</remarks>
     internal class MayonnaiseMachine : GenericObjectMachine<SObject>
     {
         /*********
@@ -38,39 +38,37 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
                 minutes: 180
             ),
 
-            // white/brown egg => normal mayonnaise
+            // ostrich egg => 10x same-quality mayonnaise
             new Recipe(
-                input: 176,
+                input: 289,
                 inputCount: 1,
-                output: input => new SObject(Vector2.Zero, 306, null, false, true, false, false),
+                output: input => new SObject(Vector2.Zero, 306, null, false, true, false, false) { Stack = 10, Quality = ((SObject)input).Quality },
                 minutes: 180
             ),
+
+            // white/brown egg => normal mayonnaise
             new Recipe(
-                input: 180,
+                input: item => item.ParentSheetIndex == 176 || item.ParentSheetIndex == 180,
                 inputCount: 1,
                 output: input => new SObject(Vector2.Zero, 306, null, false, true, false, false),
-                minutes: 180
+                minutes: _ => 180
             ),
             
             // dinosaur or large white/brown egg => gold-quality mayonnaise
             new Recipe(
-                input: 107,
+                input: item => item.ParentSheetIndex == 107 || item.ParentSheetIndex == 174 || item.ParentSheetIndex == 182,
                 inputCount: 1,
                 output: input => new SObject(Vector2.Zero, 306, null, false, true, false, false) { Quality = SObject.highQuality },
+                minutes: _ => 180
+            ),
+
+            // golden egg => 3x gold-quality mayonnaise
+            new Recipe(
+                input: 928,
+                inputCount: 1,
+                output: input => new SObject(Vector2.Zero, 306, null, false, true, false, false) { Stack = 3, Quality = SObject.highQuality },
                 minutes: 180
             ),
-            new Recipe(
-                input: 174,
-                inputCount: 1,
-                output: input => new SObject(Vector2.Zero, 306, null, false, true, false, false) { Quality = SObject.highQuality },
-                minutes: 180
-            ),
-            new Recipe(
-                input: 182,
-                inputCount: 1,
-                output: input => new SObject(Vector2.Zero, 306, null, false, true, false, false) { Quality = SObject.highQuality },
-                minutes: 180
-            )
         };
 
 
@@ -82,7 +80,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
         /// <param name="location">The location containing the machine.</param>
         /// <param name="tile">The tile covered by the machine.</param>
         public MayonnaiseMachine(SObject machine, GameLocation location, Vector2 tile)
-            : base(machine, location, tile) { }
+            : base(machine, location, tile, machineTypeId: "MayonnaiseMachine") { }
 
         /// <summary>Provide input to the machine.</summary>
         /// <param name="input">The available items.</param>

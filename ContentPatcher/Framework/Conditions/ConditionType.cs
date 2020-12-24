@@ -1,10 +1,12 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace ContentPatcher.Framework.Conditions
 {
     /// <summary>The condition types that can be checked.</summary>
     internal enum ConditionType
     {
         /****
-        ** Date
+        ** Date and weather
         ****/
         /// <summary>The day of month.</summary>
         Day,
@@ -30,6 +32,9 @@ namespace ContentPatcher.Framework.Conditions
         /****
         ** Player
         ****/
+        /// <summary>A conversation topic ID set for the player.</summary>
+        HasConversationTopic,
+
         /// <summary>A letter ID or mail flag set for the player.</summary>
         HasFlag,
 
@@ -108,8 +113,35 @@ namespace ContentPatcher.Framework.Conditions
         /// <summary>NPCs and players who are currently pregnant.</summary>
         Pregnant,
 
+        /// <summary>The in-game time of day.</summary>
+        Time,
+
         /****
-        ** Other
+        ** Number manipulation
+        ****/
+        /// <summary>A dynamic query expression.</summary>
+        Query,
+
+        /// <summary>A list of numeric values based on the specified min/max values.</summary>
+        Range,
+
+        /// <summary>A rounded approximation of the input.</summary>
+        Round,
+
+        /****
+        ** String manipulation
+        ****/
+        /// <summary>A random value selected from the given input.</summary>
+        Random,
+
+        /// <summary>A token which transforms its input text to lowercase.</summary>
+        Lowercase,
+
+        /// <summary>A token which transforms its input text to uppercase.</summary>
+        Uppercase,
+
+        /****
+        ** Metadata
         ****/
         /// <summary>An installed mod ID.</summary>
         HasMod,
@@ -120,31 +152,26 @@ namespace ContentPatcher.Framework.Conditions
         /// <summary>Whether a given value is non-blank.</summary>
         HasValue,
 
+        /// <summary>A translation from the mod's <c>i18n</c> folder.</summary>
+        [SuppressMessage("ReSharper", "InconsistentNaming", Justification = "Deliberately named to match the Stardew Valley modding convention and folder name.")]
+        I18n,
+
         /// <summary>The <see cref="StardewValley.LocalizedContentManager.LanguageCode"/> name.</summary>
         Language,
 
         /****
-        ** String manipulation
-        ****/
-        /// <summary>A random value selected from the given input.</summary>
-        Random,
-
-        /// <summary>A list of numeric values based on the specified min/max values.</summary>
-        Range,
-
-        /// <summary>A token which transforms its input text to lowercase.</summary>
-        Lowercase,
-
-        /// <summary>A token which transforms its input text to uppercase.</summary>
-        Uppercase,
-
-        /****
         ** Patch-specific
         ****/
+        /// <summary>The current patch's FromFile value.</summary>
+        FromFile,
+
         /// <summary>The current patch's full target value.</summary>
         Target,
 
         /// <summary>The filename portion of the current patch's target value.</summary>
-        TargetWithoutPath
+        TargetWithoutPath,
+
+        /// <summary>The path portion of the current patch's target value, without the filename.</summary>
+        TargetPathOnly
     };
 }

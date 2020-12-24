@@ -1,6 +1,34 @@
 [← back to readme](README.md)
 
 # Release notes
+## 1.9.3
+Released 21 December 2020.
+
+* Updated for Stardew Valley 1.5, including split-screen mode.
+
+## 1.9.2
+Released 15 October 2020.
+
+* Refactored translation handling.
+
+## 1.9.1
+Released 02 August 2020.
+
+* Fixed harvest speed option temporarily speeding up the Tractor Mod tractor while harvesting.
+
+## 1.9
+Released 03 July 2020.
+
+* Added support for...
+  * horse mount/dismount animations;
+  * crop harvest animations.
+* You can now configure the mod in-game if you have [Generic Mod Config Menu](https://www.nexusmods.com/stardewvalley/mods/5098) installed.
+
+## 1.8
+Released 02 May 2020.
+
+* Added support for fractional multipliers like 1.5 times faster (thanks to seraku24!).
+
 ## 1.7.5
 Released 27 December 2019.
 

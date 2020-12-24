@@ -7,7 +7,7 @@ using SObject = StardewValley.Object;
 namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
 {
     /// <summary>A preserves jar that accepts input and provides output.</summary>
-    /// <remarks>See the game's machine logic in <see cref="SObject.performObjectDropInAction"/> and <see cref="SObject.checkForAction"/>.</remarks>
+    /// <remarks>Derived from <see cref="SObject.performObjectDropInAction"/> and <see cref="SObject.checkForAction"/> (search for 'Preserves Jar').</remarks>
     internal class PreservesJarMachine : GenericObjectMachine<SObject>
     {
         /*********
@@ -34,9 +34,9 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
                 minutes: 4000
             ),
 
-            // vegetable => pickled vegetable
+            // vegetable or ginger => pickled item
             new Recipe(
-                input: SObject.VegetableCategory,
+                input: item => item.Category == SObject.VegetableCategory || item.ParentSheetIndex == 829,
                 inputCount: 1,
                 output: input =>
                 {
@@ -50,7 +50,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
                     return item;
 
                 },
-                minutes: 4000
+                minutes: _ => 4000
             ),
 
             // roe => aged roe || sturgeon roe => caviar

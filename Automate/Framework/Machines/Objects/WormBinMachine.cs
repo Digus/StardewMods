@@ -5,7 +5,7 @@ using SObject = StardewValley.Object;
 namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
 {
     /// <summary>A tapper that accepts input and provides output.</summary>
-    /// <remarks>See the game's machine logic in <see cref="SObject.performDropDownAction"/> and <see cref="SObject.checkForAction"/>.</remarks>
+    /// <remarks>Derived from <see cref="SObject.performDropDownAction"/> and <see cref="SObject.checkForAction"/> (search for 'Worm Bin').</remarks>
     internal class WormBinMachine : GenericObjectMachine<SObject>
     {
         /*********
@@ -25,7 +25,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
             return new TrackedItem(bin.heldObject.Value, item =>
             {
                 bin.heldObject.Value = new SObject(685, Game1.random.Next(2, 6));
-                bin.MinutesUntilReady = 2600 - Game1.timeOfDay;
+                bin.MinutesUntilReady = Utility.CalculateMinutesUntilMorning(Game1.timeOfDay);
                 bin.readyForHarvest.Value = false;
                 bin.showNextIndex.Value = false;
             });

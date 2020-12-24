@@ -5,20 +5,20 @@ using SObject = StardewValley.Object;
 namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
 {
     /// <summary>A furnace that accepts input and provides output.</summary>
+    /// <remarks>Derived from <see cref="SObject.performObjectDropInAction"/> (search for 'Furnace').</remarks>
     internal class FurnaceMachine : GenericObjectMachine<SObject>
     {
         /*********
         ** Fields
         *********/
         /// <summary>The recipes to process.</summary>
-        /// <remarks>Derived from <see cref="SObject.performObjectDropInAction"/>.</remarks>
         private readonly IRecipe[] Recipes =
         {
             // copper => copper bar
             new Recipe(
                 input: SObject.copper,
                 inputCount: 5,
-                output: input => new SObject(Vector2.Zero, SObject.copperBar, 1),
+                output: _ => new SObject(SObject.copperBar, 1),
                 minutes: 30
             ),
 
@@ -26,7 +26,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
             new Recipe(
                 input: SObject.iron,
                 inputCount: 5,
-                output: input => new SObject(Vector2.Zero, SObject.ironBar, 1),
+                output: _ => new SObject(SObject.ironBar, 1),
                 minutes: 120
             ),
 
@@ -34,7 +34,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
             new Recipe(
                 input: SObject.gold,
                 inputCount: 5,
-                output: input => new SObject(Vector2.Zero, SObject.goldBar, 1),
+                output: _ => new SObject(SObject.goldBar, 1),
                 minutes: 300
             ),
 
@@ -42,24 +42,40 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
             new Recipe(
                 input: SObject.iridium,
                 inputCount: 5,
-                output: input => new SObject(Vector2.Zero, SObject.iridiumBar, 1),
+                output: _ => new SObject(SObject.iridiumBar, 1),
                 minutes: 480
+            ),
+
+            // radioactive ore => radioactive bar
+            new Recipe(
+                input: 909,
+                inputCount: 5,
+                output: _ => new SObject(910, 1),
+                minutes: 560
             ),
 
             // quartz => refined quartz
             new Recipe(
                 input: SObject.quartzIndex,
                 inputCount: 1,
-                output: input => new SObject(Vector2.Zero, 338, 1),
+                output: _ => new SObject(338, 1),
                 minutes: 90
             ),
 
-            // refined quartz => refined quartz
+            // fire quartz => refined quartz
             new Recipe(
                 input: 82,
                 inputCount: 1,
-                output: input => new SObject(Vector2.Zero, 338, 3),
+                output: _ => new SObject(338, 3),
                 minutes: 90
+            ),
+
+            // bouquet => wilted bouquet
+            new Recipe(
+                input: 458,
+                inputCount: 1,
+                output: _ => new SObject(277, 1),
+                minutes: 10
             )
         };
 

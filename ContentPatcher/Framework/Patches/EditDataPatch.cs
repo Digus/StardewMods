@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using ContentPatcher.Framework.Conditions;
 using ContentPatcher.Framework.ConfigModels;
+using ContentPatcher.Framework.Constants;
 using ContentPatcher.Framework.Tokens;
 using Microsoft.Xna.Framework.Graphics;
 using Newtonsoft.Json;
@@ -13,7 +14,7 @@ using xTile;
 
 namespace ContentPatcher.Framework.Patches
 {
-    /// <summary>Metadata for a data to edit into a data file.</summary>
+    /// <summary>Metadata for data to edit into a data file.</summary>
     internal class EditDataPatch : Patch
     {
         /*********
@@ -31,8 +32,8 @@ namespace ContentPatcher.Framework.Patches
         /// <summary>The records to reorder, if the target is a list asset.</summary>
         private EditDataPatchMoveRecord[] MoveRecords;
 
-        /// <summary>A list of warning messages which have been previously logged.</summary>
-        private readonly HashSet<string> LoggedWarnings = new HashSet<string>();
+        /// <summary>The text operations to apply to existing values.</summary>
+        private readonly TextOperation[] TextOperations;
 
         /// <summary>Parse the data change fields for an <see cref="PatchType.EditData"/> patch.</summary>
         private readonly TryParseFieldsDelegate TryParseFields;
@@ -59,24 +60,38 @@ namespace ContentPatcher.Framework.Patches
         ** Public methods
         *********/
         /// <summary>Construct an instance.</summary>
-        /// <param name="logName">A unique name for this patch shown in log messages.</param>
-        /// <param name="contentPack">The content pack which requested the patch.</param>
+        /// <param name="path">The path to the patch from the root content file.</param>
         /// <param name="assetName">The normalized asset name to intercept.</param>
         /// <param name="conditions">The conditions which determine whether this patch should be applied.</param>
         /// <param name="fromFile">The normalized asset key from which to load entries (if applicable), including tokens.</param>
         /// <param name="records">The data records to edit.</param>
         /// <param name="fields">The data fields to edit.</param>
         /// <param name="moveRecords">The records to reorder, if the target is a list asset.</param>
+        /// <param name="textOperations">The text operations to apply to existing values.</param>
+        /// <param name="updateRate">When the patch should be updated.</param>
+        /// <param name="contentPack">The content pack which requested the patch.</param>
+        /// <param name="parentPatch">The parent patch for which this patch was loaded, if any.</param>
         /// <param name="monitor">Encapsulates monitoring and logging.</param>
         /// <param name="normalizeAssetName">Normalize an asset name.</param>
         /// <param name="tryParseFields">Parse the data change fields for an <see cref="PatchType.EditData"/> patch.</param>
-        public EditDataPatch(string logName, ManagedContentPack contentPack, IManagedTokenString assetName, IEnumerable<Condition> conditions, IManagedTokenString fromFile, IEnumerable<EditDataPatchRecord> records, IEnumerable<EditDataPatchField> fields, IEnumerable<EditDataPatchMoveRecord> moveRecords, IMonitor monitor, Func<string, string> normalizeAssetName, TryParseFieldsDelegate tryParseFields)
-            : base(logName, PatchType.EditData, contentPack, assetName, conditions, normalizeAssetName, fromAsset: fromFile)
+        public EditDataPatch(LogPathBuilder path, IManagedTokenString assetName, IEnumerable<Condition> conditions, IManagedTokenString fromFile, IEnumerable<EditDataPatchRecord> records, IEnumerable<EditDataPatchField> fields, IEnumerable<EditDataPatchMoveRecord> moveRecords, IEnumerable<TextOperation> textOperations, UpdateRate updateRate, IContentPack contentPack, IPatch parentPatch, IMonitor monitor, Func<string, string> normalizeAssetName, TryParseFieldsDelegate tryParseFields)
+            : base(
+                path: path,
+                type: PatchType.EditData,
+                assetName: assetName,
+                conditions: conditions,
+                updateRate: updateRate,
+                contentPack: contentPack,
+                parentPatch: parentPatch,
+                normalizeAssetName: normalizeAssetName,
+                fromAsset: fromFile
+            )
         {
             // set fields
             this.Records = records?.ToArray();
             this.Fields = fields?.ToArray();
             this.MoveRecords = moveRecords?.ToArray();
+            this.TextOperations = textOperations?.ToArray() ?? new TextOperation[0];
             this.Monitor = monitor;
             this.TryParseFields = tryParseFields;
 
@@ -85,12 +100,11 @@ namespace ContentPatcher.Framework.Patches
                 .Add(this.Records)
                 .Add(this.Fields)
                 .Add(this.MoveRecords)
+                .Add(this.TextOperations)
                 .Add(this.Conditions);
         }
 
-        /// <summary>Update the patch data when the context changes.</summary>
-        /// <param name="context">Provides access to contextual tokens.</param>
-        /// <returns>Returns whether the patch data changed.</returns>
+        /// <inheritdoc />
         public override bool UpdateContext(IContext context)
         {
             // skip: don't need to handle a data file
@@ -98,7 +112,7 @@ namespace ContentPatcher.Framework.Patches
                 return base.UpdateContext(context);
 
             // skip: file already loaded and target didn't change
-            if (!this.RawManagedTargetAsset.UpdateContext(context) && this.AttemptedDataLoad)
+            if (!this.ManagedRawTargetAsset.UpdateContext(context) && this.AttemptedDataLoad)
                 return base.UpdateContext(context);
 
             // reload non-data changes
@@ -121,30 +135,29 @@ namespace ContentPatcher.Framework.Patches
                     this.MoveRecords = moveEntries.ToArray();
                 }
                 else
-                    this.Monitor.Log($"Can't load \"{this.LogName}\" fields from file '{this.RawFromAsset.Value}': {error}.", LogLevel.Warn);
+                    this.Monitor.Log($"Can't load \"{this.Path}\" fields from file '{this.RawFromAsset}': {error}.", LogLevel.Warn);
 
                 this.AttemptedDataLoad = true;
             }
 
+            // update context
             this.Contextuals
                 .Add(this.Records)
                 .Add(this.Fields)
-                .Add(this.MoveRecords);
+                .Add(this.MoveRecords)
+                .UpdateContext(context);
             this.IsReady = this.IsReady && this.Contextuals.IsReady;
 
             return true;
         }
 
-        /// <summary>Apply the patch to a loaded asset.</summary>
-        /// <typeparam name="T">The asset type.</typeparam>
-        /// <param name="asset">The asset to edit.</param>
-        /// <exception cref="NotSupportedException">The asset data can't be parsed or edited.</exception>
+        /// <inheritdoc />
         public override void Edit<T>(IAssetData asset)
         {
             // throw on invalid type
-            if (typeof(T) == typeof(Texture2D) || typeof(T) == typeof(Map))
+            if (typeof(Texture2D).IsAssignableFrom(typeof(T)) || typeof(Map).IsAssignableFrom(typeof(T)))
             {
-                this.Monitor.Log($"Can't apply data patch \"{this.LogName}\" to {this.TargetAsset}: this file isn't a data file (found {(typeof(T) == typeof(Texture2D) ? "image" : typeof(T).Name)}).", LogLevel.Warn);
+                this.Monitor.Log($"Can't apply data patch \"{this.Path}\" to {this.TargetAsset}: this file isn't a data file (found {(typeof(Texture2D).IsAssignableFrom(typeof(T)) ? "image" : typeof(T).Name)}).", LogLevel.Warn);
                 return;
             }
 
@@ -197,7 +210,7 @@ namespace ContentPatcher.Framework.Patches
                 throw new NotSupportedException($"Unknown data asset type {typeof(T).FullName}, expected dictionary or list.");
         }
 
-        /// <summary>Get a human-readable list of changes applied to the asset for display when troubleshooting.</summary>
+        /// <inheritdoc />
         public override IEnumerable<string> GetChangeLabels()
         {
             if (this.Records?.Any(p => p.Value?.Value == null) == true)
@@ -208,6 +221,9 @@ namespace ContentPatcher.Framework.Patches
 
             if (this.MoveRecords?.Any() == true)
                 yield return "reordered entries";
+
+            if (this.TextOperations.Any())
+                yield return "applied text operations";
         }
 
 
@@ -273,6 +289,7 @@ namespace ContentPatcher.Framework.Patches
 
             // apply field/record edits
             this.ApplyCollection<TKey, TValue>(
+                asset,
                 hasEntry: key => data.ContainsKey(key),
                 getEntry: key => data[key],
                 setEntry: (key, value) => data[key] = value,
@@ -281,7 +298,7 @@ namespace ContentPatcher.Framework.Patches
 
             // apply moves
             if (this.MoveRecords.Any())
-                this.LogOnce($"Can't move records for \"{this.LogName}\" > {nameof(PatchConfig.MoveEntries)}: target asset '{this.TargetAsset}' isn't an ordered list).", LogLevel.Warn);
+                this.Monitor.LogOnce($"Can't move records for \"{this.Path}\" > {nameof(PatchConfig.MoveEntries)}: target asset '{this.TargetAsset}' isn't an ordered list).", LogLevel.Warn);
         }
 
         /// <summary>Apply the patch to a list asset.</summary>
@@ -295,6 +312,7 @@ namespace ContentPatcher.Framework.Patches
 
             // apply field/record edits
             this.ApplyCollection<string, TValue>(
+                asset,
                 hasEntry: key => GetByKey(key) != null,
                 getEntry: key => GetByKey(key),
                 setEntry: (key, value) =>
@@ -325,13 +343,13 @@ namespace ContentPatcher.Framework.Patches
             {
                 if (!moveRecord.IsReady)
                     continue;
-                string errorLabel = $"record \"{this.LogName}\" > {nameof(PatchConfig.MoveEntries)} > \"{moveRecord.ID.Value}\"";
+                string errorLabel = $"record \"{this.Path}\" > {nameof(PatchConfig.MoveEntries)} > \"{moveRecord.ID}\"";
 
                 // get entry
                 TValue entry = GetByKey(moveRecord.ID.Value);
                 if (entry == null)
                 {
-                    this.LogOnce($"Can't move {errorLabel}: no entry with that ID exists.", LogLevel.Warn);
+                    this.Monitor.LogOnce($"Can't move {errorLabel}: no entry with that ID exists.", LogLevel.Warn);
                     continue;
                 }
                 int fromIndex = data.IndexOf(entry);
@@ -358,12 +376,12 @@ namespace ContentPatcher.Framework.Patches
                     TValue anchorEntry = GetByKey(anchorID);
                     if (anchorEntry == null)
                     {
-                        this.LogOnce($"Can't move {errorLabel}: no entry with the relative ID exists.", LogLevel.Warn);
+                        this.Monitor.LogOnce($"Can't move {errorLabel}: no entry with the relative ID exists.", LogLevel.Warn);
                         continue;
                     }
                     if (object.ReferenceEquals(entry, anchorEntry))
                     {
-                        this.LogOnce($"Can't move {errorLabel}: can't move entry relative to itself.", LogLevel.Warn);
+                        this.Monitor.LogOnce($"Can't move {errorLabel}: can't move entry relative to itself.", LogLevel.Warn);
                         continue;
                     }
 
@@ -378,11 +396,12 @@ namespace ContentPatcher.Framework.Patches
         /// <summary>Apply the patch to a dictionary asset.</summary>
         /// <typeparam name="TKey">The dictionary key type.</typeparam>
         /// <typeparam name="TValue">The dictionary value type.</typeparam>
+        /// <param name="asset">The asset being edited.</param>
         /// <param name="hasEntry">Get whether the collection has the given entry.</param>
         /// <param name="getEntry">Get an entry from the collection.</param>
         /// <param name="removeEntry">Remove an entry from the collection.</param>
         /// <param name="setEntry">Add or replace an entry in the collection.</param>
-        private void ApplyCollection<TKey, TValue>(Func<TKey, bool> hasEntry, Func<TKey, TValue> getEntry, Action<TKey> removeEntry, Action<TKey, TValue> setEntry)
+        private void ApplyCollection<TKey, TValue>(IAssetInfo asset, Func<TKey, bool> hasEntry, Func<TKey, TValue> getEntry, Action<TKey> removeEntry, Action<TKey, TValue> setEntry)
         {
             // apply records
             if (this.Records != null)
@@ -390,6 +409,7 @@ namespace ContentPatcher.Framework.Patches
                 int i = 0;
                 foreach (EditDataPatchRecord record in this.Records)
                 {
+                    string errorPrefix = $"Can't apply data patch \"{this.Path} > entry #{i}\" to {this.TargetAsset}";
                     i++;
 
                     // get key
@@ -403,7 +423,7 @@ namespace ContentPatcher.Framework.Patches
                         else if (record.Value.Value is JValue field)
                             setEntry(key, field.Value<TValue>());
                         else
-                            this.Monitor.Log($"Can't apply data patch \"{this.LogName} > entry #{i}\" to {this.TargetAsset}: this asset has string values (but {record.Value.Value.Type} values were provided).", LogLevel.Warn);
+                            this.Monitor.Log($"{errorPrefix}: this asset has string values (but {record.Value.Value.Type} values were provided).", LogLevel.Warn);
                     }
 
                     // apply object
@@ -414,7 +434,7 @@ namespace ContentPatcher.Framework.Patches
                         else if (record.Value.Value is JObject field)
                             setEntry(key, field.ToObject<TValue>());
                         else
-                            this.Monitor.Log($"Can't apply data patch \"{this.LogName} > entry #{i}\" to {this.TargetAsset}: this asset has {typeof(TValue)} values (but {record.Value.Value.Type} values were provided).", LogLevel.Warn);
+                            this.Monitor.Log($"{errorPrefix}: this asset has {typeof(TValue)} values (but {record.Value.Value.Type} values were provided).", LogLevel.Warn);
                     }
                 }
             }
@@ -422,37 +442,40 @@ namespace ContentPatcher.Framework.Patches
             // apply fields
             if (this.Fields != null)
             {
+                char fieldDelimiter = this.GetStringFieldDelimiter(asset);
                 foreach (IGrouping<string, EditDataPatchField> recordGroup in this.Fields.GroupByIgnoreCase(p => p.EntryKey.Value))
                 {
+                    string errorPrefix = $"Can't apply data patch \"{this.Path}\" to {this.TargetAsset}";
+
                     // get key
                     TKey key = (TKey)Convert.ChangeType(recordGroup.Key, typeof(TKey));
                     if (!hasEntry(key))
                     {
-                        this.Monitor.Log($"Can't apply data patch \"{this.LogName}\" to {this.TargetAsset}: there's no record matching key '{key}' under {nameof(PatchConfig.Fields)}.", LogLevel.Warn);
+                        this.Monitor.Log($"{errorPrefix}: there's no record matching key '{key}' under {nameof(PatchConfig.Fields)}.", LogLevel.Warn);
                         continue;
                     }
 
                     // apply string
                     if (typeof(TValue) == typeof(string))
                     {
-                        string[] actualFields = ((string)(object)getEntry(key)).Split('/');
+                        string[] actualFields = ((string)(object)getEntry(key)).Split(fieldDelimiter);
                         foreach (EditDataPatchField field in recordGroup)
                         {
                             if (!int.TryParse(field.FieldKey.Value, out int index))
                             {
-                                this.Monitor.Log($"Can't apply data field \"{this.LogName}\" to {this.TargetAsset}: record '{key}' under {nameof(PatchConfig.Fields)} is a string, so it requires a field index between 0 and {actualFields.Length - 1} (received \"{field.FieldKey}\"instead)).", LogLevel.Warn);
+                                this.Monitor.Log($"{errorPrefix}: record '{key}' under {nameof(PatchConfig.Fields)} is a string, so it requires a field index between 0 and {actualFields.Length - 1} (received \"{field.FieldKey}\"instead)).", LogLevel.Warn);
                                 continue;
                             }
                             if (index < 0 || index > actualFields.Length - 1)
                             {
-                                this.Monitor.Log($"Can't apply data field \"{this.LogName}\" to {this.TargetAsset}: record '{key}' under {nameof(PatchConfig.Fields)} has no field with index {field.FieldKey} (must be 0 to {actualFields.Length - 1}).", LogLevel.Warn);
+                                this.Monitor.Log($"{errorPrefix}: record '{key}' under {nameof(PatchConfig.Fields)} has no field with index {index} (must be 0 to {actualFields.Length - 1}).", LogLevel.Warn);
                                 continue;
                             }
 
                             actualFields[index] = field.Value.Value.Value<string>();
                         }
 
-                        setEntry(key, (TValue)(object)string.Join("/", actualFields));
+                        setEntry(key, (TValue)(object)string.Join(fieldDelimiter.ToString(), actualFields));
                     }
 
                     // apply object
@@ -463,11 +486,79 @@ namespace ContentPatcher.Framework.Patches
                             obj[field.FieldKey.Value] = field.Value.Value;
 
                         JsonSerializer serializer = new JsonSerializer();
-                        using (JsonReader reader = obj.CreateReader())
-                            serializer.Populate(reader, getEntry(key));
+                        using JsonReader reader = obj.CreateReader();
+                        serializer.Populate(reader, getEntry(key));
                     }
                 }
             }
+
+            // apply text operations
+            for (int i = 0; i < this.TextOperations.Length; i++)
+            {
+                if (!this.TryApplyTextOperation(this.TextOperations[i], hasEntry, getEntry, removeEntry, setEntry, out string error))
+                    this.Monitor.Log($"Can't data patch \"{this.Path} > text operation #{i}\" to {this.TargetAsset}: {error}", LogLevel.Warn);
+            }
+        }
+
+        /// <summary>Try to apply a text operation.</summary>
+        /// <param name="operation">The text operation to apply.</param>
+        /// <param name="hasEntry">Get whether the collection has the given entry.</param>
+        /// <param name="getEntry">Get an entry from the collection.</param>
+        /// <param name="removeEntry">Remove an entry from the collection.</param>
+        /// <param name="setEntry">Add or replace an entry in the collection.</param>
+        /// <param name="error">An error indicating why applying the operation failed, if applicable.</param>
+        /// <returns>Returns whether applying the operation succeeded.</returns>
+        private bool TryApplyTextOperation<TKey, TValue>(TextOperation operation, Func<TKey, bool> hasEntry, Func<TKey, TValue> getEntry, Action<TKey> removeEntry, Action<TKey, TValue> setEntry, out string error)
+        {
+            var targetRoot = operation.GetTargetRoot();
+            switch (targetRoot)
+            {
+                case TextOperationTargetRoot.Entries:
+                    {
+                        // validate
+                        if (typeof(TValue) != typeof(string))
+                            return this.Fail($"an '{TextOperationTargetRoot.Entries}' text operation can only be used for string entries. For data model entries, use '{TextOperationTargetRoot.Fields}' instead.", out error);
+                        if (operation.Target.Length > 2)
+                            return this.Fail($"an '{TextOperationTargetRoot.Entries}' path must only have one other segment for the property name.", out error);
+
+                        // get key
+                        string rawKey = operation.Target[1].Value;
+                        TKey key;
+                        if (typeof(TKey) == typeof(string))
+                            key = (TKey)(object)rawKey;
+                        else if (typeof(TKey) == typeof(int))
+                        {
+                            if (!int.TryParse(rawKey, out int intKey))
+                                return this.Fail($"can't use value '{rawKey}' as an entry key because this asset uses numeric keys.", out error);
+                            key = (TKey)(object)intKey;
+                        }
+                        else
+                            return this.Fail($"unsupported asset key type '{typeof(TKey).FullName}'.", out error);
+
+                        // get value
+                        string value = hasEntry(key)
+                            ? (string)(object)getEntry(key)
+                            : null;
+
+                        // set value
+                        setEntry(key, (TValue)(object)operation.Apply(value));
+                    }
+                    break;
+
+                case TextOperationTargetRoot.Fields:
+                    throw new NotImplementedException("TODO");
+
+                default:
+                    return this.Fail(
+                        targetRoot == null
+                            ? $"unknown path root '{operation.Target[0]}'."
+                            : $"path root '{targetRoot}' isn't valid for an {nameof(PatchType.EditMap)} patch",
+                        out error
+                    );
+            }
+
+            error = null;
+            return true;
         }
 
         /// <summary>Get the key for a list asset entry.</summary>
@@ -478,13 +569,13 @@ namespace ContentPatcher.Framework.Patches
             return InternalConstants.GetListAssetKey(entity);
         }
 
-        /// <summary>Log a message the first time it occurs.</summary>
-        /// <param name="message">The log message.</param>
-        /// <param name="level">The log level.</param>
-        private void LogOnce(string message, LogLevel level)
+        /// <summary>Get the delimiter used in string entries for an asset.</summary>
+        /// <param name="asset">The asset being edited.</param>
+        private char GetStringFieldDelimiter(IAssetInfo asset)
         {
-            if (this.LoggedWarnings.Add(message))
-                this.Monitor.Log(message, level);
+            return asset.AssetNameEquals("Data/Achievements")
+                ? '^'
+                : '/';
         }
     }
 }

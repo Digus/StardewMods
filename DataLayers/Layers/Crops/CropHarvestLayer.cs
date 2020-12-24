@@ -28,17 +28,17 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
         ** Public methods
         *********/
         /// <summary>Construct an instance.</summary>
-        /// <param name="translations">Provides translations in stored in the mod folder's i18n folder.</param>
         /// <param name="config">The data layer settings.</param>
+        /// <param name="input">The API for checking input state.</param>
         /// <param name="monitor">Writes messages to the SMAPI log.</param>
-        public CropHarvestLayer(ITranslationHelper translations, LayerConfig config, IMonitor monitor)
-            : base(translations.Get("crop-harvest.name"), config, monitor)
+        public CropHarvestLayer(LayerConfig config, IInputHelper input, IMonitor monitor)
+            : base(I18n.CropHarvest_Name(), config, input, monitor)
         {
             this.Legend = new[]
             {
-                this.Ready = new LegendEntry(translations, "crop-harvest.ready", Color.Green),
-                this.NotReady = new LegendEntry(translations, "crop-harvest.not-ready", Color.Black),
-                this.NotEnoughTime = new LegendEntry(translations, "crop-harvest.not-enough-time", Color.Red)
+                this.Ready = new LegendEntry(I18n.Keys.CropHarvest_Ready, Color.Green),
+                this.NotReady = new LegendEntry(I18n.Keys.CropHarvest_NotReady, Color.Black),
+                this.NotEnoughTime = new LegendEntry(I18n.Keys.CropHarvest_NotEnoughTime, Color.Red)
             };
         }
 
@@ -72,14 +72,14 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Crops
             {
                 // get crop
                 Crop crop = this.GetDirt(location, tile)?.crop;
-                if (crop == null)
+                if (crop == null || crop.dead.Value)
                     continue;
                 CropDataParser data = new CropDataParser(crop, isPlanted: true);
 
                 // yield tile
                 if (data.CanHarvestNow)
                     yield return new TileData(tile, this.Ready);
-                else if (!location.IsGreenhouse && !data.Seasons.Contains(data.GetNextHarvest().Season))
+                else if (!location.SeedsIgnoreSeasonsHere() && !data.Seasons.Contains(data.GetNextHarvest().Season))
                     yield return new TileData(tile, this.NotEnoughTime);
                 else
                     yield return new TileData(tile, this.NotReady);

@@ -1,14 +1,16 @@
-﻿using StardewValley.TerrainFeatures;
+using StardewValley.TerrainFeatures;
 
 namespace Pathoschild.Stardew.LookupAnything.Framework.Constants
 {
     /// <summary>Indicates a tree type.</summary>
     internal enum TreeType
     {
-        Oak = Tree.bushyTree,
+        BigMushroom = Tree.mushroomTree,
+        Mahogany = Tree.mahoganyTree,
         Maple = Tree.leafyTree,
-        Pine = Tree.pineTree,
+        Oak = Tree.bushyTree,
         Palm = Tree.palmTree,
-        BigMushroom = Tree.mushroomTree
+        Palm2 = Tree.palmTree2,
+        Pine = Tree.pineTree
     }
 }

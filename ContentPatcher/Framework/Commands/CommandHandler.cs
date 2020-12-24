@@ -2,18 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using ContentPatcher.Framework.Conditions;
+using ContentPatcher.Framework.ConfigModels;
 using ContentPatcher.Framework.Lexing.LexTokens;
 using ContentPatcher.Framework.Patches;
 using ContentPatcher.Framework.Tokens;
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using Newtonsoft.Json;
 using Pathoschild.Stardew.Common.Utilities;
 using StardewModdingAPI;
+using StardewModdingAPI.Utilities;
+using StardewValley;
 
 namespace ContentPatcher.Framework.Commands
 {
@@ -31,6 +34,12 @@ namespace ContentPatcher.Framework.Commands
 
         /// <summary>Manages loaded patches.</summary>
         private readonly PatchManager PatchManager;
+
+        /// <summary>Manages loading and unloading patches.</summary>
+        private readonly PatchLoader PatchLoader;
+
+        /// <summary>The loaded content packs.</summary>
+        private readonly IList<RawContentPack> ContentPacks;
 
         /// <summary>Get the current token context for a given mod ID, or the global context if given a null mod ID.</summary>
         private readonly Func<string, IContext> GetContext;
@@ -61,14 +70,18 @@ namespace ContentPatcher.Framework.Commands
         /// <summary>Construct an instance.</summary>
         /// <param name="tokenManager">Manages loaded tokens.</param>
         /// <param name="patchManager">Manages loaded patches.</param>
+        /// <param name="patchLoader">Manages loading and unloading patches.</param>
         /// <param name="monitor">Encapsulates monitoring and logging.</param>
+        /// <param name="contentPacks">The loaded content packs.</param>
         /// <param name="getContext">Get the current token context.</param>
         /// <param name="updateContext">A callback which immediately updates the current condition context.</param>
-        public CommandHandler(TokenManager tokenManager, PatchManager patchManager, IMonitor monitor, Func<string, IContext> getContext, Action updateContext)
+        public CommandHandler(TokenManager tokenManager, PatchManager patchManager, PatchLoader patchLoader, IMonitor monitor, IList<RawContentPack> contentPacks, Func<string, IContext> getContext, Action updateContext)
         {
             this.TokenManager = tokenManager;
             this.PatchManager = patchManager;
+            this.PatchLoader = patchLoader;
             this.Monitor = monitor;
+            this.ContentPacks = contentPacks;
             this.GetContext = getContext;
             this.UpdateContext = updateContext;
         }
@@ -99,6 +112,9 @@ namespace ContentPatcher.Framework.Commands
                 case "export":
                     return this.HandleExport(subcommandArgs);
 
+                case "reload":
+                    return this.HandleReload(subcommandArgs);
+
                 default:
                     this.Monitor.Log($"The '{this.CommandName} {args[0]}' command isn't valid. Type '{this.CommandName} help' for a list of valid commands.", LogLevel.Debug);
                     return false;
@@ -124,7 +140,8 @@ namespace ContentPatcher.Framework.Commands
                 ["summary"] = $"{this.CommandName} summary\n   Usage: {this.CommandName} summary\n   Shows a summary of the current conditions and loaded patches.",
                 ["update"] = $"{this.CommandName} update\n   Usage: {this.CommandName} update\n   Immediately refreshes the condition context and rechecks all patches.",
                 ["parse"] = $"{this.CommandName} parse\n   usage: {this.CommandName} parse \"value\"\n   Parses the given token string and shows the result. For example, `{this.CommandName} parse \"assets/{{{{Season}}}}.png\" will show a value like \"assets/Spring.png\".\n\n{this.CommandName} parse \"value\" \"content-pack.id\"\n   Parses the given token string and shows the result, using tokens available to the specified content pack (using the ID from the content pack's manifest.json). For example, `{this.CommandName} parse \"assets/{{{{CustomToken}}}}.png\" \"Pathoschild.ExampleContentPack\".",
-                ["export"] = $"{this.CommandName} export\n   Usage: {this.CommandName} export \"<asset name>\"\n   Saves a copy of an asset (including any changes from mods like Content Patcher) to the game folder. The asset name should be the target without the locale or extension, like \"Characters/Abigail\" if you want to export the value of 'Content/Characters/Abigail.xnb'."
+                ["export"] = $"{this.CommandName} export\n   Usage: {this.CommandName} export \"<asset name>\"\n   Saves a copy of an asset (including any changes from mods like Content Patcher) to the game folder. The asset name should be the target without the locale or extension, like \"Characters/Abigail\" if you want to export the value of 'Content/Characters/Abigail.xnb'.",
+                ["reload"] = $"{this.CommandName} reload\n   Usage: {this.CommandName} reload \"<content pack ID>\"\n   Reloads the patches of the content.json of a content pack. Config schema changes and dynamic token changes are unsupported."
             };
 
             // build output
@@ -158,6 +175,7 @@ namespace ContentPatcher.Framework.Commands
         private bool HandleSummary()
         {
             StringBuilder output = new StringBuilder();
+            LogPathBuilder path = new LogPathBuilder("console command");
 
             // add condition summary
             output.AppendLine();
@@ -170,11 +188,11 @@ namespace ContentPatcher.Framework.Commands
                     (
                         from token in this.TokenManager.GetTokens(enforceContext: false)
                         let inputArgs = token.GetAllowedInputArguments().ToArray()
-                        let rootValues = !token.RequiresInput ? token.GetValues(null).ToArray() : new string[0]
+                        let rootValues = !token.RequiresInput ? token.GetValues(InputArguments.Empty).ToArray() : new string[0]
                         let isMultiValue =
                             inputArgs.Length > 1
                             || rootValues.Length > 1
-                            || (inputArgs.Length == 1 && token.GetValues(new LiteralString(inputArgs[0])).Count() > 1)
+                            || (inputArgs.Length == 1 && token.GetValues(new InputArguments(new LiteralString(inputArgs[0], path.With(token.Name, "input")))).Count() > 1)
                         orderby isMultiValue, token.Name // single-value tokens first, then alphabetically
                         select token
                     )
@@ -216,14 +234,14 @@ namespace ContentPatcher.Framework.Commands
                                     }
                                     else
                                         output.Append($"      {"".PadRight(labelWidth, ' ')} |     ");
-                                    output.AppendLine($":{input}: {string.Join(", ", token.GetValues(new LiteralString(input)))}");
+                                    output.AppendLine($":{input}: {string.Join(", ", token.GetValues(new InputArguments(new LiteralString(input, path.With(token.Name, "input")))))}");
                                 }
                             }
                             else
                                 output.AppendLine("[X] (token returns a dynamic value)");
                         }
                         else
-                            output.AppendLine("[X] " + string.Join(", ", token.GetValues(null).OrderByIgnoreCase(p => p)));
+                            output.AppendLine("[X] " + string.Join(", ", token.GetValues(InputArguments.Empty).OrderByIgnoreCase(p => p)));
                     }
 
                     output.AppendLine();
@@ -261,7 +279,7 @@ namespace ContentPatcher.Framework.Commands
 
                             // get input arguments
                             let validInputs = token.IsReady && token.RequiresInput
-                                ? token.GetAllowedInputArguments().Select(p => new LiteralString(p)).AsEnumerable<ITokenString>()
+                                ? token.GetAllowedInputArguments().Select(p => new LiteralString(p, path.With(patchGroup.Key, token.Name, $"input '{p}'"))).AsEnumerable<ITokenString>()
                                 : new ITokenString[] { null }
                             from ITokenString input in validInputs
 
@@ -271,7 +289,7 @@ namespace ContentPatcher.Framework.Commands
                             let result = new
                             {
                                 Name = token.RequiresInput ? $"{token.Name}:{input}" : token.Name,
-                                Value = token.IsReady ? string.Join(", ", token.GetValues(input)) : "",
+                                Value = token.IsReady ? string.Join(", ", token.GetValues(new InputArguments(input))) : "",
                                 IsReady = token.IsReady
                             }
                             orderby result.Name
@@ -298,22 +316,32 @@ namespace ContentPatcher.Framework.Commands
                 output.AppendLine("   Patches:");
                 output.AppendLine("      loaded  | conditions | applied | name + details");
                 output.AppendLine("      ------- | ---------- | ------- | --------------");
-                foreach (PatchInfo patch in patchGroup.OrderByIgnoreCase(p => p.ShortName))
+                foreach (PatchInfo patch in patchGroup.OrderBy(p => p, new PatchDisplaySortComparer()))
                 {
                     // log checkbox and patch name
-                    output.Append($"      [{(patch.IsLoaded ? "X" : " ")}]     | [{(patch.MatchesContext ? "X" : " ")}]        | [{(patch.IsApplied ? "X" : " ")}]     | {patch.ShortName}");
+                    output.Append($"      [{(patch.IsLoaded ? "X" : " ")}]     | [{(patch.MatchesContext ? "X" : " ")}]        | [{(patch.IsApplied ? "X" : " ")}]     | {patch.PathWithoutContentPackPrefix}");
 
                     // log target value if different from name
                     {
-                        // get raw value
-                        string rawValue = null;
-                        if (!patch.ShortName.Contains($"{patch.RawTargetAsset}"))
-                            rawValue = $"{patch.Type} {patch.RawTargetAsset}";
+                        // get patch values
+                        string rawIdentifyingPath = PathUtilities.NormalizePath(patch.ParsedType == PatchType.Include
+                            ? patch.RawFromAsset
+                            : patch.RawTargetAsset
+                        );
+                        var parsedIdentifyingPath = patch.ParsedType == PatchType.Include
+                            ? patch.ParsedFromAsset
+                            : patch.ParsedTargetAsset;
+
+                        // get raw name if different
+                        // (ignore differences in whitespace, capitalization, and path separators)
+                        string rawValue = !PathUtilities.NormalizePath(patch.PathWithoutContentPackPrefix.ToString().Replace(" ", "")).ContainsIgnoreCase(rawIdentifyingPath?.Replace(" ", ""))
+                            ? $"{patch.ParsedType?.ToString() ?? patch.RawType} {rawIdentifyingPath}"
+                            : null;
 
                         // get parsed value
-                        string parsedValue = null;
-                        if (patch.MatchesContext && patch.ParsedTargetAsset != null && patch.ParsedTargetAsset.HasAnyTokens)
-                            parsedValue = patch.ParsedTargetAsset.Value;
+                        string parsedValue = patch.MatchesContext && parsedIdentifyingPath?.HasAnyTokens == true
+                            ? PathUtilities.NormalizePath(parsedIdentifyingPath.Value)
+                            : null;
 
                         // format
                         if (rawValue != null || parsedValue != null)
@@ -336,7 +364,7 @@ namespace ContentPatcher.Framework.Commands
                     if (errorReason != null)
                         output.Append($"  // {errorReason}");
 
-                    // log common issues
+                    // log common issues if not applied
                     if (errorReason == null && patch.IsLoaded && !patch.IsApplied && patch.ParsedTargetAsset.IsMeaningful())
                     {
                         string assetName = patch.ParsedTargetAsset.Value;
@@ -356,13 +384,33 @@ namespace ContentPatcher.Framework.Commands
                             output.Append($" // hint: asset name may be incorrect ({string.Join("; ", issues)}).");
                     }
 
+                    // log update rate issues
+                    if (patch.Patch != null)
+                    {
+                        foreach (var pair in this.TokenManager.TokensWithSpecialUpdateRates)
+                        {
+                            UpdateRate rate = pair.Item1;
+                            string label = pair.Item2;
+                            var tokenNames = pair.Item3;
+
+                            if (!patch.Patch.UpdateRate.HasFlag(rate))
+                            {
+                                var tokensUsed = new InvariantHashSet(patch.Patch.GetTokensUsed());
+
+                                string[] locationTokensUsed = tokenNames.Where(p => tokensUsed.Contains(p)).ToArray();
+                                if (locationTokensUsed.Any())
+                                    output.Append($" // hint: patch uses {label}, but doesn't set \"{nameof(PatchConfig.Update)}\": \"{rate}\".");
+                            }
+                        }
+                    }
+
                     // end line
                     output.AppendLine();
                 }
 
                 // print patch effects
                 {
-                    IDictionary<string, InvariantHashSet> effectsByPatch = new Dictionary<string, InvariantHashSet>(StringComparer.InvariantCultureIgnoreCase);
+                    IDictionary<string, InvariantHashSet> effectsByPatch = new Dictionary<string, InvariantHashSet>(StringComparer.OrdinalIgnoreCase);
                     foreach (PatchInfo patch in patchGroup)
                     {
                         if (!patch.IsApplied || patch.Patch == null)
@@ -375,8 +423,7 @@ namespace ContentPatcher.Framework.Commands
                         if (!effectsByPatch.TryGetValue(patch.ParsedTargetAsset.Value, out InvariantHashSet effects))
                             effectsByPatch[patch.ParsedTargetAsset.Value] = effects = new InvariantHashSet();
 
-                        foreach (string effect in patch.GetChangeLabels())
-                            effects.Add(effect);
+                        effects.AddMany(patch.GetChangeLabels());
                     }
 
                     output.AppendLine();
@@ -388,8 +435,8 @@ namespace ContentPatcher.Framework.Commands
                         output.AppendLine($"      asset name{"".PadRight(maxAssetNameWidth - "asset name".Length)} | changes");
                         output.AppendLine($"      ----------{"".PadRight(maxAssetNameWidth - "----------".Length, '-')} | -------");
 
-                        foreach (var pair in effectsByPatch.OrderBy(p => p.Key, StringComparer.InvariantCultureIgnoreCase))
-                            output.AppendLine($"      {pair.Key}{"".PadRight(maxAssetNameWidth - pair.Key.Length)} | {string.Join("; ", pair.Value.OrderBy(p => p, StringComparer.InvariantCultureIgnoreCase))}");
+                        foreach (var pair in effectsByPatch.OrderBy(p => p.Key, StringComparer.OrdinalIgnoreCase))
+                            output.AppendLine($"      {pair.Key}{"".PadRight(maxAssetNameWidth - pair.Key.Length)} | {string.Join("; ", pair.Value.OrderBy(p => p, StringComparer.OrdinalIgnoreCase))}");
                     }
                     else
                         output.AppendLine("   No current changes.");
@@ -445,7 +492,7 @@ namespace ContentPatcher.Framework.Commands
             TokenString tokenStr;
             try
             {
-                tokenStr = new TokenString(raw, context);
+                tokenStr = new TokenString(raw, context, new LogPathBuilder("console command"));
             }
             catch (LexFormatException ex)
             {
@@ -474,7 +521,7 @@ namespace ContentPatcher.Framework.Commands
             output.AppendLine($"   mutable:     {tokenStr.IsMutable}");
             output.AppendLine($"   has tokens:  {tokenStr.HasAnyTokens}");
             if (tokenStr.HasAnyTokens)
-                output.AppendLine($"   tokens used: {string.Join(", ", tokenStr.GetTokensUsed().Distinct().OrderBy(p => p, StringComparer.InvariantCultureIgnoreCase))}");
+                output.AppendLine($"   tokens used: {string.Join(", ", tokenStr.GetTokensUsed().Distinct().OrderBy(p => p, StringComparer.OrdinalIgnoreCase))}");
             output.AppendLine();
 
             output.AppendLine("Diagnostic state");
@@ -496,7 +543,7 @@ namespace ContentPatcher.Framework.Commands
             output.AppendLine("----------------");
             output.AppendLine(!tokenStr.IsReady
                 ? "The token string is invalid or unready."
-                : $"   The token string is valid and ready. Parsed value: \"{tokenStr.Value}\""
+                : $"   The token string is valid and ready. Parsed value: \"{tokenStr}\""
             );
 
             this.Monitor.Log(output.ToString(), LogLevel.Debug);
@@ -516,35 +563,17 @@ namespace ContentPatcher.Framework.Commands
             }
             string assetName = args[0];
 
-            // get loaded values
-            object[] loadedValues;
+            // load asset
+            object asset;
+            try
             {
-                // HACK
-                // Reflecting into the SMAPI internals is strongly discouraged, since they may change at any time without warning or backwards compatibility.
-                // SMAPI and Content Patcher are maintained by the same developer, so Content Patcher is guaranteed to update if SMAPI changes the internals
-                //it depends on. This code also isn't important to the actual functionality of the mod.
-                object coordinator = StardewValley.Program.gamePtr.GetType().GetProperty("ContentCore")?.GetValue(StardewValley.Program.gamePtr);
-                if (coordinator == null)
-                {
-                    this.Monitor.Log("Can't access SMAPI's internal content coordinator.", LogLevel.Error);
-                    return true;
-                }
-
-                MethodInfo getLoadedValues = coordinator.GetType().GetMethod("GetLoadedValues");
-                if (getLoadedValues == null)
-                {
-                    this.Monitor.Log($"Can't access {coordinator.GetType().FullName}.GetLoadedValues.", LogLevel.Error);
-                    return true;
-                }
-
-                loadedValues = ((IEnumerable<object>)getLoadedValues.Invoke(coordinator, new object[] { assetName }))?.ToArray();
+                asset = Game1.content.Load<object>(assetName);
             }
-            if (loadedValues == null || loadedValues.Length == 0)
+            catch (ContentLoadException ex)
             {
-                this.Monitor.Log("That asset isn't currently loaded by the game.", LogLevel.Error);
+                this.Monitor.Log($"Can't load asset '{assetName}': {ex.Message}", LogLevel.Error);
                 return true;
             }
-            object asset = loadedValues.FirstOrDefault();
 
             // init export path
             string fullTargetPath = Path.Combine(StardewModdingAPI.Constants.ExecutionPath, "patch export", string.Join("_", assetName.Split(Path.GetInvalidFileNameChars())));
@@ -575,6 +604,44 @@ namespace ContentPatcher.Framework.Commands
             return true;
         }
 
+        /// <summary>Handle the 'patch reload' command.</summary>
+        /// <param name="args">The subcommand arguments.</param>
+        /// <returns>Returns whether the command was handled.</returns>
+        private bool HandleReload(string[] args)
+        {
+            // get pack ID
+            if (args.Length != 1)
+            {
+                this.Monitor.Log("The 'patch reload' command expects a single arguments containing the target content pack ID. See 'patch help' for more info.", LogLevel.Error);
+                return true;
+            }
+            string packId = args[0];
+
+            // get pack
+            RawContentPack pack = this.ContentPacks.SingleOrDefault(p => p.Manifest.UniqueID == packId);
+            if (pack == null)
+            {
+                this.Monitor.Log($"No Content Patcher content pack with the unique ID \"{packId}\".", LogLevel.Error);
+                return true;
+            }
+
+            // unload patches
+            this.PatchLoader.UnloadPatchesLoadedBy(pack, false);
+
+            // load pack patches
+            var changes = pack.ContentPack.ReadJsonFile<ContentConfig>("content.json").Changes;
+            pack.Content.Changes = changes;
+
+            // reload patches
+            this.PatchLoader.LoadPatches(pack, pack.Content.Changes, new LogPathBuilder(pack.Manifest.Name), reindex: true, parentPatch: null);
+
+            // make the changes apply
+            this.UpdateContext();
+
+            this.Monitor.Log("Content pack reloaded.", LogLevel.Info);
+            return true;
+        }
+
 
         /****
         ** Helpers
@@ -595,7 +662,6 @@ namespace ContentPatcher.Framework.Commands
             if (patch.IsApplied)
                 return null;
 
-            IContext tokenContext = patch.PatchContext;
             IContextualState state = patch.State;
 
             // state error
@@ -611,11 +677,11 @@ namespace ContentPatcher.Framework.Commands
             {
                 string[] failedConditions = (
                     from condition in patch.ParsedConditions
-                    let displayText = !condition.Is(ConditionType.HasFile) && condition.HasInput()
-                        ? $"{condition.Name}:{condition.Input.Raw}"
+                    let displayText = !condition.Is(ConditionType.HasFile) && !string.IsNullOrWhiteSpace(condition.Input.TokenString?.Raw)
+                        ? $"{condition.Name}:{condition.Input.TokenString.Raw}"
                         : condition.Name
                     orderby displayText
-                    where !condition.IsMatch(tokenContext)
+                    where !condition.IsMatch
                     select $"{displayText}"
                 ).ToArray();
 

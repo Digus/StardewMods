@@ -2,9 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
+using Newtonsoft.Json.Linq;
 using Pathoschild.Stardew.Automate.Framework;
+using Pathoschild.Stardew.Automate.Framework.Machines.Buildings;
 using Pathoschild.Stardew.Automate.Framework.Models;
 using Pathoschild.Stardew.Common;
+using Pathoschild.Stardew.Common.Messages;
 using Pathoschild.Stardew.Common.Utilities;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
@@ -27,6 +30,9 @@ namespace Pathoschild.Stardew.Automate
 
         /// <summary>Constructs machine groups.</summary>
         private MachineGroupFactory Factory;
+
+        /// <summary>Handles console commands from players.</summary>
+        private CommandHandler CommandHandler;
 
         /// <summary>Whether to enable automation for the current save.</summary>
         private bool EnableAutomation => Context.IsMainPlayer;
@@ -55,25 +61,27 @@ namespace Pathoschild.Stardew.Automate
         public override void Entry(IModHelper helper)
         {
             // read data file
+            const string dataPath = "assets/data.json";
             DataModel data = null;
             try
             {
-                data = this.Helper.Data.ReadJsonFile<DataModel>("data.json");
+                data = this.Helper.Data.ReadJsonFile<DataModel>(dataPath);
                 if (data?.FloorNames == null)
-                    this.Monitor.Log("The data.json file seems to be missing or invalid. Floor connectors will be disabled.", LogLevel.Error);
+                    this.Monitor.Log($"The {dataPath} file seems to be missing or invalid. Floor connectors will be disabled.", LogLevel.Error);
             }
             catch (Exception ex)
             {
-                this.Monitor.Log($"The data.json file seems to be invalid. Floor connectors will be disabled.\n{ex}", LogLevel.Error);
+                this.Monitor.Log($"The {dataPath} file seems to be invalid. Floor connectors will be disabled.\n{ex}", LogLevel.Error);
             }
 
+            // read config
+            this.Config = this.LoadConfig();
+
             // init
-            this.Config = helper.ReadConfig<ModConfig>();
-            this.Keys = this.Config.Controls.ParseControls(this.Monitor);
-            this.Factory = new MachineGroupFactory();
+            this.Keys = this.Config.Controls.ParseControls(helper.Input, this.Monitor);
+            this.Factory = new MachineGroupFactory(this.Config);
             this.Factory.Add(new AutomationFactory(
                 connectors: this.Config.ConnectorNames,
-                automateShippingBin: this.Config.AutomateShippingBin,
                 monitor: this.Monitor,
                 reflection: helper.Reflection,
                 data: data,
@@ -81,6 +89,7 @@ namespace Pathoschild.Stardew.Automate
                 autoGrabberModCompat: this.Config.ModCompatibility.AutoGrabberMod && helper.ModRegistry.IsLoaded("Jotser.AutoGrabberMod"),
                 pullGemstonesFromJunimoHuts: this.Config.PullGemstonesFromJunimoHuts
             ));
+            this.CommandHandler = new CommandHandler(this.Monitor, this.Config, this.Factory, this.ActiveMachineGroups);
 
             // hook events
             helper.Events.GameLoop.SaveLoaded += this.OnSaveLoaded;
@@ -91,9 +100,15 @@ namespace Pathoschild.Stardew.Automate
             helper.Events.World.TerrainFeatureListChanged += this.OnTerrainFeatureListChanged;
             helper.Events.GameLoop.UpdateTicked += this.OnUpdateTicked;
             helper.Events.Input.ButtonPressed += this.OnButtonPressed;
+            helper.Events.Multiplayer.ModMessageReceived += this.OnModMessageReceived;
+
+            // hook commands
+            helper.ConsoleCommands.Add("automate", "Run commands from the Automate mod. Enter 'automate help' for more info.", this.CommandHandler.HandleCommand);
 
             // log info
             this.Monitor.VerboseLog($"Initialized with automation every {this.Config.AutomationInterval} ticks.");
+            if (this.Config.ModCompatibility.WarnForMissingBridgeMod)
+                this.ReportMissingBridgeMods(data?.SuggestedIntegrations);
         }
 
         /// <summary>Get an API that other mods can access. This is always called after <see cref="Entry" />.</summary>
@@ -123,8 +138,7 @@ namespace Pathoschild.Stardew.Automate
             this.DisabledMachineGroups.Clear();
             this.AutomateCountdown = this.Config.AutomationInterval;
             this.DisableOverlay();
-            foreach (GameLocation location in CommonHelper.GetLocations())
-                this.ReloadQueue.Add(location);
+            this.ReloadQueue.AddMany(CommonHelper.GetLocations());
         }
 
         /// <summary>The method invoked when the player warps to a new location.</summary>
@@ -156,8 +170,7 @@ namespace Pathoschild.Stardew.Automate
                 }
 
                 // add locations
-                foreach (GameLocation location in e.Added)
-                    this.ReloadQueue.Add(location);
+                this.ReloadQueue.AddMany(e.Added);
             }
             catch (Exception ex)
             {
@@ -254,7 +267,7 @@ namespace Pathoschild.Stardew.Automate
             try
             {
                 // toggle overlay
-                if (Context.IsPlayerFree && this.Keys.ToggleOverlay.Contains(e.Button))
+                if (Context.IsPlayerFree && this.Keys.ToggleOverlay.JustPressedUnique())
                 {
                     if (this.CurrentOverlay != null)
                         this.DisableOverlay();
@@ -268,9 +281,109 @@ namespace Pathoschild.Stardew.Automate
             }
         }
 
+        /// <summary>Raised after a mod message is received over the network.</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event arguments.</param>
+        private void OnModMessageReceived(object sender, ModMessageReceivedEventArgs e)
+        {
+            // update automation if chest options changed
+            if (Context.IsMainPlayer && e.FromModID == "Pathoschild.ChestsAnywhere" && e.Type == nameof(AutomateUpdateChestMessage))
+            {
+                var message = e.ReadAs<AutomateUpdateChestMessage>();
+                var location = Game1.getLocationFromName(message.LocationName);
+                var player = Game1.getFarmer(e.FromPlayerID);
+
+                string label = player != Game1.MasterPlayer
+                    ? $"{player.Name}/{e.FromModID}"
+                    : e.FromModID;
+
+                if (location != null)
+                {
+                    this.Monitor.Log($"Received chest update from {label} for chest at {message.LocationName} ({message.Tile}), updating machines.");
+                    this.ReloadQueue.Add(location);
+                }
+                else
+                    this.Monitor.Log($"Received chest update from {label} for chest at {message.LocationName} ({message.Tile}), but no such location was found.");
+            }
+        }
+
         /****
         ** Methods
         ****/
+        /// <summary>Read the config file, migrating legacy settings if applicable.</summary>
+        private ModConfig LoadConfig()
+        {
+            // read raw config
+            var config = this.Helper.ReadConfig<ModConfig>();
+            bool changed = false;
+
+            // normalize machine settings
+            config.MachineOverrides = new Dictionary<string, ModConfigMachine>(config.MachineOverrides ?? new Dictionary<string, ModConfigMachine>(), StringComparer.OrdinalIgnoreCase);
+            foreach (string key in config.MachineOverrides.Where(p => p.Value == null).Select(p => p.Key).ToArray())
+            {
+                config.MachineOverrides.Remove(key);
+                changed = true;
+            }
+
+            // migrate legacy fields
+            if (config.ExtensionFields != null)
+            {
+                // migrate AutomateShippingBin (1.10.4–1.17.3)
+                try
+                {
+                    if (config.ExtensionFields.TryGetValue("AutomateShippingBin", out JToken raw))
+                        config.GetOrAddMachineOverrides(ShippingBinMachine.ShippingBinId).Enabled = raw.ToObject<bool>();
+                }
+                catch (Exception ex)
+                {
+                    this.Monitor.Log($"Failed migrating legacy 'AutomateShippingBin' config field, ignoring previous value.\n\n{ex}", LogLevel.Warn);
+                }
+
+                // migrate MachinePriority field (1.17–1.17.3) to MachineSettings
+                // (and fix wrong "ShippingBinMachine" default value)
+                try
+                {
+                    if (config.ExtensionFields.TryGetValue("MachinePriority", out JToken raw))
+                    {
+                        var priorities = raw.ToObject<Dictionary<string, int>>() ?? new Dictionary<string, int>();
+                        foreach (var pair in priorities)
+                        {
+                            string key = pair.Key == "ShippingBinMachine" ? ShippingBinMachine.ShippingBinId : pair.Key;
+                            config.GetOrAddMachineOverrides(key).Priority = pair.Value;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.Monitor.Log($"Failed migrating legacy 'MachinePriority' config field, ignoring previous value.\n\n{ex}", LogLevel.Warn);
+                }
+
+                config.ExtensionFields.Clear();
+                changed = true;
+            }
+
+            // resave changes
+            if (changed)
+                this.Helper.WriteConfig(config);
+
+            return config;
+        }
+
+        /// <summary>Log warnings if custom-machine frameworks are installed without their automation component.</summary>
+        /// <param name="integrations">Mods which add custom machine recipes and require a separate automation component.</param>
+        private void ReportMissingBridgeMods(DataModelIntegration[] integrations)
+        {
+            if (integrations?.Any() != true)
+                return;
+
+            var registry = this.Helper.ModRegistry;
+            foreach (var integration in integrations)
+            {
+                if (registry.IsLoaded(integration.Id) && !registry.IsLoaded(integration.SuggestedId))
+                    this.Monitor.Log($"Machine recipes added by {integration.Name} aren't currently automated. Install {integration.SuggestedName} too to enable them: {integration.SuggestedUrl}.", LogLevel.Warn);
+            }
+        }
+
         /// <summary>Get the active machine groups in every location.</summary>
         private IEnumerable<MachineGroup> GetActiveMachineGroups()
         {
@@ -318,8 +431,7 @@ namespace Pathoschild.Stardew.Automate
         /// <summary>Enable the overlay.</summary>
         private void EnableOverlay()
         {
-            if (this.CurrentOverlay == null)
-                this.CurrentOverlay = new OverlayMenu(this.Helper.Events, this.Helper.Input, this.Factory.GetMachineGroups(Game1.currentLocation));
+            this.CurrentOverlay ??= new OverlayMenu(this.Helper.Events, this.Helper.Input, this.Helper.Reflection, this.Factory.GetMachineGroups(Game1.currentLocation));
         }
 
         /// <summary>Reset the overlay if it's being shown.</summary>

@@ -46,6 +46,9 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders.ModConvention
         /// <summary>The implementation for <see cref="TryValidateValues"/>, if any.</summary>
         private ConventionDelegates.TryValidateValues TryValidateValuesImpl;
 
+        /// <summary>The implementation for <see cref="NormalizeValue"/>, if any.</summary>
+        private ConventionDelegates.NormalizeValue NormalizeValueImpl;
+
         /****
         ** State
         ****/
@@ -119,6 +122,7 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders.ModConvention
                     && TryMap<ConventionDelegates.HasBoundedRangeValues>(out error)
                     && TryMap<ConventionDelegates.TryValidateInput>(out error)
                     && TryMap<ConventionDelegates.TryValidateValues>(out error)
+                    && TryMap<ConventionDelegates.NormalizeValue>(out error)
 
                     // state
                     && TryMap<ConventionDelegates.IsReady>(out error)
@@ -139,14 +143,14 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders.ModConvention
             return this.IsMutableImpl?.Invoke() ?? true;
         }
 
-        /// <summary>Get whether the value provider allows an input argument (e.g. an NPC name for a relationship token).</summary>
+        /// <summary>Get whether the value provider allows input arguments (e.g. an NPC name for a relationship token).</summary>
         /// <remarks>Default false.</remarks>
         public bool AllowsInput()
         {
             return this.AllowsInputImpl?.Invoke() ?? false;
         }
 
-        /// <summary>Whether the value provider requires an input argument to work, and does not provide values without it (see <see cref="AllowsInput"/>).</summary>
+        /// <summary>Whether the value provider requires input arguments to work, and does not provide values without it (see <see cref="AllowsInput"/>).</summary>
         /// <remarks>Default false.</remarks>
         public bool RequiresInput()
         {
@@ -154,7 +158,7 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders.ModConvention
         }
 
         /// <summary>Whether the value provider may return multiple values for the given input.</summary>
-        /// <param name="input">The input argument, if applicable.</param>
+        /// <param name="input">The input arguments, if any.</param>
         /// <remarks>Default true.</remarks>
         public bool CanHaveMultipleValues(string input = null)
         {
@@ -171,7 +175,7 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders.ModConvention
         }
 
         /// <summary>Get whether the token always chooses from a set of known values for the given input. Mutually exclusive with <see cref="HasBoundedRangeValues"/>.</summary>
-        /// <param name="input">The input argument, if applicable.</param>
+        /// <param name="input">The input arguments, if any.</param>
         /// <param name="allowedValues">The possible values for the input.</param>
         /// <remarks>Default unrestricted.</remarks>
         public bool HasBoundedValues(string input, out IEnumerable<string> allowedValues)
@@ -182,7 +186,7 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders.ModConvention
         }
 
         /// <summary>Get whether the token always returns a value within a bounded numeric range for the given input. Mutually exclusive with <see cref="HasBoundedValues"/>.</summary>
-        /// <param name="input">The input argument, if any.</param>
+        /// <param name="input">The input arguments, if any.</param>
         /// <param name="min">The minimum value this token may return.</param>
         /// <param name="max">The maximum value this token may return.</param>
         /// <remarks>Default false.</remarks>
@@ -194,8 +198,8 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders.ModConvention
             return this.HasBoundedRangeValuesImpl?.Invoke(input, out min, out max) ?? false;
         }
 
-        /// <summary>Validate that the provided input argument is valid.</summary>
-        /// <param name="input">The input argument, if applicable.</param>
+        /// <summary>Validate that the provided input arguments are valid.</summary>
+        /// <param name="input">The input arguments, if any.</param>
         /// <param name="error">The validation error, if any.</param>
         /// <returns>Returns whether validation succeeded.</returns>
         /// <remarks>Default true.</remarks>
@@ -206,8 +210,8 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders.ModConvention
             return this.TryValidateInputImpl?.Invoke(input, out error) ?? true;
         }
 
-        /// <summary>Validate that the provided values are valid for the input argument (regardless of whether they match).</summary>
-        /// <param name="input">The input argument, if applicable.</param>
+        /// <summary>Validate that the provided values are valid for the given input arguments (regardless of whether they match).</summary>
+        /// <param name="input">The input arguments, if any.</param>
         /// <param name="values">The values to validate.</param>
         /// <param name="error">The validation error, if any.</param>
         /// <returns>Returns whether validation succeeded.</returns>
@@ -217,6 +221,15 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders.ModConvention
             error = null;
 
             return this.TryValidateValuesImpl?.Invoke(input, values, out error) ?? true;
+        }
+
+        /// <summary>Normalize a raw value so it can be compared with the token values.</summary>
+        /// <param name="value">The raw value.</param>
+        public string NormalizeValue(string value)
+        {
+            return this.NormalizeValueImpl != null
+                ? this.NormalizeValueImpl(value)
+                : value;
         }
 
 
@@ -230,7 +243,7 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders.ModConvention
         }
 
         /// <summary>Get the current values. This method is required.</summary>
-        /// <param name="input">The input argument, if applicable.</param>
+        /// <param name="input">The input arguments, if any.</param>
         public IEnumerable<string> GetValues(string input)
         {
             return this.GetValuesImpl != null
@@ -265,7 +278,7 @@ namespace ContentPatcher.Framework.Tokens.ValueProviders.ModConvention
                 MethodInfo[] candidates = instance.GetType().GetMethods().Where(p => p.Name == name).ToArray();
                 if (candidates.Length == 0)
                     return false;
-                if (candidates.Length > 2)
+                if (candidates.Length > 1)
                     return Fail($"method {name} has multiple implementations.", out error);
             }
 

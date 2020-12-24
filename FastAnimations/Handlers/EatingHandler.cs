@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Xna.Framework;
+using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.FastAnimations.Framework;
 using StardewModdingAPI;
 using StardewValley;
@@ -32,7 +33,7 @@ namespace Pathoschild.Stardew.FastAnimations.Handlers
         /// <param name="reflection">Simplifies access to private code.</param>
         /// <param name="multiplier">The animation speed multiplier to apply.</param>
         /// <param name="disableConfirmation">Whether to disable the confirmation dialogue before eating or drinking.</param>
-        public EatingHandler(IReflectionHelper reflection, int multiplier, bool disableConfirmation)
+        public EatingHandler(IReflectionHelper reflection, float multiplier, bool disableConfirmation)
             : base(multiplier)
         {
             this.Reflection = reflection;
@@ -43,6 +44,7 @@ namespace Pathoschild.Stardew.FastAnimations.Handlers
         /// <param name="playerAnimationID">The player's current animation ID.</param>
         public override bool IsEnabled(int playerAnimationID)
         {
+            // to allow disabling the confirmation even if the animation isn't sped up, the handler is still called with multiplier ≤ 1
             return
                 (this.Multiplier > 1 && this.IsAnimationPlaying())
                 || (this.DisableConfirmation && this.IsConfirmationShown(out _));
@@ -58,7 +60,7 @@ namespace Pathoschild.Stardew.FastAnimations.Handlers
                 // When the animation starts, the game shows a yes/no dialogue asking the player to
                 // confirm they really want to eat the item. This code answers 'yes' and closes the
                 // dialogue.
-                Response yes = this.Reflection.GetField<List<Response>>(eatMenu, "responses").GetValue()[0];
+                Response yes = eatMenu.responses[0];
                 Game1.currentLocation.answerDialogue(yes);
                 eatMenu.closeDialogue();
             }
@@ -84,7 +86,7 @@ namespace Pathoschild.Stardew.FastAnimations.Handlers
                 // speed up animations
                 GameTime gameTime = Game1.currentGameTime;
                 GameLocation location = Game1.player.currentLocation;
-                for (int i = 1; i < this.Multiplier; i++)
+                this.ApplySkips(() =>
                 {
                     // temporary item animations
                     foreach (TemporaryAnimatedSprite animation in this.ItemAnimations.ToArray())
@@ -99,9 +101,10 @@ namespace Pathoschild.Stardew.FastAnimations.Handlers
 
                     // eating animation
                     Game1.player.Update(gameTime, location);
-                }
+                });
             }
         }
+
 
         /*********
         ** Private methods
@@ -112,10 +115,10 @@ namespace Pathoschild.Stardew.FastAnimations.Handlers
         {
             if (Game1.player.itemToEat != null && Game1.activeClickableMenu is DialogueBox dialogue)
             {
-                string actualLine = this.Reflection.GetField<List<string>>(dialogue, "dialogues").GetValue().FirstOrDefault();
+                string actualLine = dialogue.dialogues.FirstOrDefault();
                 bool isConfirmation =
-                    actualLine == Game1.content.LoadString("Strings\\StringsFromCSFiles:Game1.cs.3159", Game1.player.itemToEat.DisplayName) // drink
-                    || actualLine == Game1.content.LoadString("Strings\\StringsFromCSFiles:Game1.cs.3160", Game1.player.itemToEat.DisplayName); // eat
+                    actualLine == GameI18n.GetString("Strings\\StringsFromCSFiles:Game1.cs.3159", Game1.player.itemToEat.DisplayName) // drink
+                    || actualLine == GameI18n.GetString("Strings\\StringsFromCSFiles:Game1.cs.3160", Game1.player.itemToEat.DisplayName); // eat
 
                 if (isConfirmation)
                 {

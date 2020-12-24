@@ -1,6 +1,33 @@
 [← back to readme](README.md)
 
 # Release notes
+## 1.2.4
+Released 21 December 2020.
+
+* Updated for Stardew Valley 1.5, including split-screen mode.
+
+## 1.2.3
+Released 15 October 2020.
+
+* Refactored translation handling.
+
+## 1.2.2
+Released 21 July 2020.
+
+* Improved translations. Thanks to stefanhahn80 (updated German)!
+
+## 1.2.1
+Released 02 May 2020.
+
+* Improved translations. Thanks to BURAKMESE (added Turkish) and D0n-A (updated Russian)!
+
+## 1.2
+Released 08 March 2020.
+
+* Added support for toggling noclip during cutscenes.
+* Added support for multi-key bindings (like `LeftShift + F11`).
+* Improved translations. Thanks to Annosz (added Hungarian), asqwedcxz741 (added Chinese), Hesper (added Korean), and mael-belval (added French)!
+
 ## 1.1.2
 Released 01 February 2020.
 

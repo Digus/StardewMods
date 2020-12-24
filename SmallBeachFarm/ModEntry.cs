@@ -4,7 +4,9 @@ using System.Linq;
 using Harmony;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.SmallBeachFarm.Framework;
+using Pathoschild.Stardew.SmallBeachFarm.Framework.Config;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
 using StardewValley;
@@ -12,6 +14,7 @@ using StardewValley.Objects;
 using xTile;
 using xTile.Dimensions;
 using xTile.Tiles;
+using Rectangle = Microsoft.Xna.Framework.Rectangle;
 
 namespace Pathoschild.Stardew.SmallBeachFarm
 {
@@ -21,6 +24,9 @@ namespace Pathoschild.Stardew.SmallBeachFarm
         /*********
         ** Fields
         *********/
+        /// <summary>The MD5 hash for the default data.json file.</summary>
+        private const string DataFileHash = "641585fd329fac69e377cb911cf70862";
+
         /// <summary>The pixel position at which to place the player after they arrive from Marnie's ranch.</summary>
         private readonly Vector2 MarnieWarpArrivalPixelPos = new Vector2(76, 21) * Game1.tileSize;
 
@@ -30,8 +36,14 @@ namespace Pathoschild.Stardew.SmallBeachFarm
         /// <summary>The relative path to the folder containing tilesheet overlays.</summary>
         private readonly string OverlaysPath = Path.Combine("assets", "overlays");
 
+        /// <summary>The asset name for the map to replace.</summary>
+        private string FarmMapAssetName;
+
         /// <summary>The mod configuration.</summary>
         private ModConfig Config;
+
+        /// <summary>The mod's hardcoded data.</summary>
+        private ModData Data;
 
         /// <summary>The minimum value to consider non-transparent.</summary>
         /// <remarks>On Linux/Mac, fully transparent pixels may have an alpha up to 4 for some reason.</remarks>
@@ -48,24 +60,54 @@ namespace Pathoschild.Stardew.SmallBeachFarm
         /// <param name="helper">Provides simplified APIs for writing mods.</param>
         public override void Entry(IModHelper helper)
         {
+            // read data
+            this.Data = this.Helper.Data.ReadJsonFile<ModData>("assets/data.json");
+            {
+                string dataPath = Path.Combine(this.Helper.DirectoryPath, "assets", "data.json");
+                if (this.Data == null || !File.Exists(dataPath))
+                {
+                    this.Monitor.Log("The mod's 'assets/data.json' file is missing, so this mod can't work correctly. Please reinstall the mod to fix this.", LogLevel.Error);
+                    return;
+                }
+                if (CommonHelper.GetFileHash(dataPath) != ModEntry.DataFileHash)
+                    this.Monitor.Log("Found edits to 'assets/data.json'.");
+            }
+
             // read config
-            this.Config = helper.ReadConfig<ModConfig>();
+            this.Config = this.Helper.ReadConfig<ModConfig>();
+            this.FarmMapAssetName = this.Data.FarmMaps.FirstOrDefault(p => p.ID == this.Config.ReplaceFarmID)?.Map;
+            if (this.FarmMapAssetName == null)
+            {
+                this.Monitor.Log("You have an invalid farm ID in the 'config.json' file. You can delete the file to reset it. This mod will be disabled.", LogLevel.Error);
+                return;
+            }
 
             // hook events
             helper.Events.Player.Warped += this.OnWarped;
             helper.Events.GameLoop.DayEnding += this.DayEnding;
+            helper.Events.GameLoop.GameLaunched += this.OnGameLaunched;
 
             // hook Harmony patch
-            HarmonyInstance harmony = HarmonyInstance.Create(this.ModManifest.UniqueID);
-            FarmPatcher.Hook(harmony, this.Monitor, this.Config.UseBeachMusic, isSmallBeachFarm: location => this.IsSmallBeachFarm(location, out _), isOceanTile: this.IsOceanTile);
+            var harmony = HarmonyInstance.Create(this.ModManifest.UniqueID);
+            FarmPatcher.Hook(
+                harmony,
+                this.Monitor,
+                addCampfire: this.Config.AddCampfire,
+                useBeachMusic: this.Config.UseBeachMusic,
+                isSmallBeachFarm: location => this.IsSmallBeachFarm(location, out _),
+                getFishType: this.GetFishType
+            );
         }
 
         /// <summary>Get whether this instance can load the initial version of the given asset.</summary>
         /// <param name="asset">Basic metadata about the asset being loaded.</param>
         public bool CanLoad<T>(IAssetInfo asset)
         {
+            if (this.FarmMapAssetName == null)
+                return false;
+
             return
-                asset.AssetNameEquals("Maps/Farm_Fishing")
+                asset.AssetNameEquals(this.FarmMapAssetName)
                 || asset.AssetName.StartsWith(this.FakeAssetPrefix);
         }
 
@@ -74,20 +116,34 @@ namespace Pathoschild.Stardew.SmallBeachFarm
         public T Load<T>(IAssetInfo asset)
         {
             // load map
-            if (asset.AssetNameEquals("Maps/Farm_Fishing"))
+            if (asset.AssetNameEquals(this.FarmMapAssetName))
             {
                 // load map
-                Map map = this.Helper.Content.Load<Map>(this.Config.EnableIslands
-                    ? "assets/SmallBeachFarmWithIslands.tbin"
-                    : "assets/SmallBeachFarm.tbin"
-                );
+                Map map = this.Helper.Content.Load<Map>("assets/farm.tmx");
+
+                // add islands
+                if (this.Config.EnableIslands)
+                {
+                    Map islands = this.Helper.Content.Load<Map>("assets/islands.tmx");
+                    this.Helper.Content.GetPatchHelper(map)
+                        .AsMap()
+                        .PatchMap(source: islands, targetArea: new Rectangle(0, 26, 56, 49));
+                }
+
+                // add campfire
+                if (this.Config.AddCampfire)
+                {
+                    var buildingsLayer = map.GetLayer("Buildings");
+                    buildingsLayer.Tiles[65, 23] = new StaticTile(buildingsLayer, map.GetTileSheet("zbeach"), BlendMode.Alpha, 157); // driftwood pile
+                    buildingsLayer.Tiles[64, 22] = new StaticTile(buildingsLayer, map.GetTileSheet("untitled tile sheet"), BlendMode.Alpha, 242); // campfire
+                }
 
                 // apply tilesheet recolors
                 string internalRootKey = this.Helper.Content.GetActualAssetKey(Path.Combine(this.TilesheetsPath, "_default"));
                 foreach (TileSheet tilesheet in map.TileSheets)
                 {
                     if (tilesheet.ImageSource.StartsWith(internalRootKey + Path.DirectorySeparatorChar))
-                        tilesheet.ImageSource = this.Helper.Content.GetActualAssetKey(Path.Combine(this.FakeAssetPrefix, Path.GetFileName(tilesheet.ImageSource)), ContentSource.GameContent);
+                        tilesheet.ImageSource = this.Helper.Content.GetActualAssetKey(Path.Combine(this.FakeAssetPrefix, Path.GetFileNameWithoutExtension(tilesheet.ImageSource)), ContentSource.GameContent);
                 }
 
                 return (T)(object)map;
@@ -97,6 +153,8 @@ namespace Pathoschild.Stardew.SmallBeachFarm
             if (asset.AssetName.StartsWith(this.FakeAssetPrefix))
             {
                 string filename = Path.GetFileName(asset.AssetName);
+                if (!Path.HasExtension(filename))
+                    filename += ".png";
 
                 // get relative path to load
                 string relativePath = new DirectoryInfo(this.GetFullPath(this.TilesheetsPath))
@@ -143,6 +201,27 @@ namespace Pathoschild.Stardew.SmallBeachFarm
         /*********
         ** Private methods
         *********/
+        /// <summary>The event called after the first game update, once all mods are loaded.</summary>
+        /// <param name="sender">The event sender.</param>
+        /// <param name="e">The event data.</param>
+        private void OnGameLaunched(object sender, GameLaunchedEventArgs e)
+        {
+            // add Generic Mod Config Menu integration
+            new GenericModConfigMenuIntegrationForSmallBeachFarm(
+                getConfig: () => this.Config,
+                modData: this.Data,
+                reset: () =>
+                {
+                    this.Config = new ModConfig();
+                    this.Helper.WriteConfig(this.Config);
+                },
+                saveAndApply: () => this.Helper.WriteConfig(this.Config),
+                modRegistry: this.Helper.ModRegistry,
+                monitor: this.Monitor,
+                manifest: this.ModManifest
+            ).Register();
+        }
+
         /// <summary>Raised after a player warps to a new location.</summary>
         /// <param name="sender">The event sender.</param>
         /// <param name="e">The event data.</param>
@@ -170,7 +249,7 @@ namespace Pathoschild.Stardew.SmallBeachFarm
             GameLocation beach = Game1.getLocationFromName("Beach");
             foreach (CrabPot pot in farm.objects.Values.OfType<CrabPot>())
             {
-                if (this.IsOceanTile(farm, (int)pot.TileLocation.X, (int)pot.TileLocation.Y))
+                if (this.GetFishType(farm, (int)pot.TileLocation.X, (int)pot.TileLocation.Y) == FishType.Ocean)
                     pot.DayUpdate(beach);
             }
         }
@@ -196,7 +275,7 @@ namespace Pathoschild.Stardew.SmallBeachFarm
         /// <param name="farm">The farm instance.</param>
         private bool IsSmallBeachFarm(GameLocation location, out Farm farm)
         {
-            if (Game1.whichFarm == Farm.riverlands_layout && location is Farm farmInstance && farmInstance.Name == "Farm")
+            if (Game1.whichFarm == this.Config.ReplaceFarmID && location is Farm farmInstance && farmInstance.Name == "Farm")
             {
                 farm = farmInstance;
                 return true;
@@ -206,23 +285,35 @@ namespace Pathoschild.Stardew.SmallBeachFarm
             return false;
         }
 
-        /// <summary>Get whether a given position is ocean water.</summary>
+        /// <summary>Get the fish that should be available from the given tile.</summary>
         /// <param name="farm">The farm instance.</param>
         /// <param name="x">The tile X position.</param>
         /// <param name="y">The tile Y position.</param>
-        private bool IsOceanTile(Farm farm, int x, int y)
+        private FishType GetFishType(Farm farm, int x, int y)
         {
-            // check water property
+            // not water
+            // This should never happen since it's only called when catching a fish, but just in
+            // case fallback to the default farm logic.
             if (farm.doesTileHaveProperty(x, y, "Water", "Back") == null)
-                return false;
+                return FishType.River;
 
-            // check for beach tilesheet
+            // mixed fish area
+            if (this.Data.MixedFishAreas.Any(p => p.Contains(x, y)))
+            {
+                return Game1.random.Next(2) == 1
+                    ? FishType.Ocean
+                    : FishType.River;
+            }
+
+            // ocean or river
             string tilesheetId = farm.map
                 ?.GetLayer("Back")
                 ?.PickTile(new Location(x * Game1.tileSize, y * Game1.tileSize), Game1.viewport.Size)
                 ?.TileSheet
                 ?.Id;
-            return tilesheetId == "zbeach" || tilesheetId == "zbeach_farm";
+            return tilesheetId == "zbeach" || tilesheetId == "zbeach_farm"
+                ? FishType.Ocean
+                : FishType.River;
         }
 
         /// <summary>Get whether the player shouldn't be able to access a given position.</summary>

@@ -5,10 +5,11 @@ using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Pathoschild.Stardew.Common;
+using Pathoschild.Stardew.Common.UI;
 using Pathoschild.Stardew.LookupAnything.Framework.Constants;
 using Pathoschild.Stardew.LookupAnything.Framework.DebugFields;
 using Pathoschild.Stardew.LookupAnything.Framework.Fields;
-using Pathoschild.Stardew.LookupAnything.Framework.Subjects;
+using Pathoschild.Stardew.LookupAnything.Framework.Lookups;
 using StardewModdingAPI;
 using StardewValley;
 using StardewValley.Menus;
@@ -16,7 +17,7 @@ using StardewValley.Menus;
 namespace Pathoschild.Stardew.LookupAnything.Components
 {
     /// <summary>A UI which shows information about an item.</summary>
-    internal class LookupMenu : IClickableMenu, IDisposable
+    internal class LookupMenu : BaseMenu, IDisposable
     {
         /*********
         ** Fields
@@ -77,14 +78,13 @@ namespace Pathoschild.Stardew.LookupAnything.Components
         ** Constructors
         ****/
         /// <summary>Construct an instance.</summary>
-        /// <param name="gameHelper">Provides utility methods for interacting with the game code.</param>
         /// <param name="subject">The metadata to display.</param>
         /// <param name="monitor">Encapsulates logging and monitoring.</param>
         /// <param name="reflectionHelper">Simplifies access to private game code.</param>
         /// <param name="scroll">The amount to scroll long content on each up/down scroll.</param>
         /// <param name="showDebugFields">Whether to display debug fields.</param>
         /// <param name="showNewPage">A callback which shows a new lookup for a given subject.</param>
-        public LookupMenu(GameHelper gameHelper, ISubject subject, IMonitor monitor, IReflectionHelper reflectionHelper, int scroll, bool showDebugFields, Action<ISubject> showNewPage)
+        public LookupMenu(ISubject subject, IMonitor monitor, IReflectionHelper reflectionHelper, int scroll, bool showDebugFields, Action<ISubject> showNewPage)
         {
             // save data
             this.Subject = subject;
@@ -102,15 +102,15 @@ namespace Pathoschild.Stardew.LookupAnything.Components
                 this.Fields = this.Fields
                     .Concat(new[]
                     {
-                        new DataMiningField(gameHelper, "debug (pinned)", debugFields.Where(p => p.IsPinned)),
-                        new DataMiningField(gameHelper, "debug (raw)", debugFields.Where(p => !p.IsPinned))
+                        new DataMiningField("debug (pinned)", debugFields.Where(p => p.IsPinned)),
+                        new DataMiningField("debug (raw)", debugFields.Where(p => !p.IsPinned))
                     })
                     .ToArray();
             }
 
             // add scroll buttons
-            this.ScrollUpButton = new ClickableTextureComponent(Rectangle.Empty, Sprites.Icons.Sheet, Sprites.Icons.UpArrow, 1);
-            this.ScrollDownButton = new ClickableTextureComponent(Rectangle.Empty, Sprites.Icons.Sheet, Sprites.Icons.DownArrow, 1);
+            this.ScrollUpButton = new ClickableTextureComponent(Rectangle.Empty, CommonSprites.Icons.Sheet, CommonSprites.Icons.UpArrow, 1);
+            this.ScrollDownButton = new ClickableTextureComponent(Rectangle.Empty, CommonSprites.Icons.Sheet, CommonSprites.Icons.DownArrow, 1);
 
             // update layout
             this.UpdateLayout();
@@ -326,7 +326,9 @@ namespace Pathoschild.Stardew.LookupAnything.Components
                             // draw name & item type
                             {
                                 Vector2 nameSize = contentBatch.DrawTextBlock(font, $"{subject.Name}.", new Vector2(x + leftOffset, y + topOffset), wrapWidth, bold: Constant.AllowBold);
-                                Vector2 typeSize = contentBatch.DrawTextBlock(font, $"{subject.Type}.", new Vector2(x + leftOffset + nameSize.X + spaceWidth, y + topOffset), wrapWidth);
+                                Vector2 typeSize = subject.Type != null
+                                    ? contentBatch.DrawTextBlock(font, $"{subject.Type}.", new Vector2(x + leftOffset + nameSize.X + spaceWidth, y + topOffset), wrapWidth)
+                                    : Vector2.Zero;
                                 topOffset += Math.Max(nameSize.Y, typeSize.Y);
                             }
 
@@ -390,6 +392,13 @@ namespace Pathoschild.Stardew.LookupAnything.Components
                         // end draw
                         contentBatch.End();
                     }
+                    catch (ArgumentException ex) when (!BaseMenu.UseSafeDimensions && ex.ParamName == "value" && ex.StackTrace.Contains("Microsoft.Xna.Framework.Graphics.GraphicsDevice.set_ScissorRectangle"))
+                    {
+                        this.Monitor.Log("The viewport size seems to be inaccurate. Enabling compatibility mode; lookup menu may be misaligned.", LogLevel.Warn);
+                        this.Monitor.Log(ex.ToString());
+                        BaseMenu.UseSafeDimensions = true;
+                        this.UpdateLayout();
+                    }
                     finally
                     {
                         device.ScissorRectangle = prevScissorRectangle;
@@ -414,18 +423,11 @@ namespace Pathoschild.Stardew.LookupAnything.Components
         /// <summary>Update the layout dimensions based on the current game scale.</summary>
         private void UpdateLayout()
         {
-            // get viewport size
-            Point viewport = new Point(
-                x: Math.Min(Game1.viewport.Width, Game1.graphics.GraphicsDevice.Viewport.Width),
-                y: Math.Min(Game1.viewport.Height, Game1.graphics.GraphicsDevice.Viewport.Height)
-            );
+            Point viewport = this.GetViewportSize();
 
             // update size
-            {
-                Point size = this.GetMenuSize(viewport.X, viewport.Y);
-                this.width = size.X;
-                this.height = size.Y;
-            }
+            this.width = Math.Min(Game1.tileSize * 20, viewport.X);
+            this.height = Math.Min((int)(this.AspectRatio.Y / this.AspectRatio.X * this.width), viewport.Y);
 
             // update position
             Vector2 origin = new Vector2(viewport.X / 2 - this.width / 2, viewport.Y / 2 - this.height / 2); // derived from Utility.getTopLeftPositionForCenteringOnScreen, adjusted to account for possibly different GPU viewport size
@@ -437,8 +439,8 @@ namespace Pathoschild.Stardew.LookupAnything.Components
             int y = this.yPositionOnScreen;
             int gutter = this.ScrollButtonGutter;
             float contentHeight = this.height - gutter * 2;
-            this.ScrollUpButton.bounds = new Rectangle(x + gutter, (int)(y + contentHeight - Sprites.Icons.UpArrow.Height - gutter - Sprites.Icons.DownArrow.Height), Sprites.Icons.UpArrow.Height, Sprites.Icons.UpArrow.Width);
-            this.ScrollDownButton.bounds = new Rectangle(x + gutter, (int)(y + contentHeight - Sprites.Icons.DownArrow.Height), Sprites.Icons.DownArrow.Height, Sprites.Icons.DownArrow.Width);
+            this.ScrollUpButton.bounds = new Rectangle(x + gutter, (int)(y + contentHeight - CommonSprites.Icons.UpArrow.Height - gutter - CommonSprites.Icons.DownArrow.Height), CommonSprites.Icons.UpArrow.Height, CommonSprites.Icons.UpArrow.Width);
+            this.ScrollDownButton.bounds = new Rectangle(x + gutter, (int)(y + contentHeight - CommonSprites.Icons.DownArrow.Height), CommonSprites.Icons.DownArrow.Height, CommonSprites.Icons.DownArrow.Width);
         }
 
         /// <summary>The method invoked when an unhandled exception is intercepted.</summary>
@@ -453,16 +455,6 @@ namespace Pathoschild.Stardew.LookupAnything.Components
         {
             this.CleanupImpl();
             base.cleanupBeforeExit();
-        }
-
-        /// <summary>Get the maximum width and height for the given viewport size.</summary>
-        /// <param name="viewportWidth">The viewport width.</param>
-        /// <param name="viewportHeight">The viewport height.</param>
-        private Point GetMenuSize(int viewportWidth, int viewportHeight)
-        {
-            int maxWidth = Math.Min(Game1.tileSize * 20, viewportWidth);
-            int maxHeight = Math.Min((int)(this.AspectRatio.Y / this.AspectRatio.X * maxWidth), viewportHeight);
-            return new Point(maxWidth, maxHeight);
         }
 
         /// <summary>Perform cleanup specific to the lookup menu.</summary>

@@ -1,6 +1,93 @@
 [← back to readme](README.md)
 
 # Release notes
+## 1.20
+Released 21 December 2020.
+
+* Updated for Stardew Valley 1.5, including...
+  * split-screen mode and UI scaling;
+  * new chest types.
+* Fixed error in 1.19.8 if a chest name/category has a very long sequence of numbers.
+* Fixed shipping bin playing a chest _dwop_ sound instead of bin _ker-thunk_.
+
+**Breaking changes for mod authors:**
+* Chests Anywhere previously saved chest options in the chest name using tags like `|ignore|`.
+  These are now stored in the new `modData` field added in 1.5; existing chests will be migrated
+  automatically.
+
+## 1.19.8
+Released 21 November 2020.
+
+* Improved dropdown sorting (e.g. _Chest #2_ is now before _Chest #10_).
+* You can now scroll dropdowns by clicking or tapping the arrow icons.
+* Fixed clicks on a scrolled dropdown selecting the wrong option.
+* Improved translations. Thanks to PanPan-p (updated Turkish)!
+
+## 1.19.7
+Released 04 November 2020.
+
+* Changed dropdown buttons to better fit UI.
+* Fixed compatibility with recent ChestEx update.
+* Improved translations. Thanks to Caco-o-sapo (updated Portuguese)!
+
+## 1.19.6
+Released 15 October 2020.
+
+* Refactored translation handling to prepare for future updates and use game translations where possible.
+* Improved translations. Thanks to Macskasajt05 (updated Hungarian) and zhxxn (updated Korean)!
+
+## 1.19.5
+Released 02 August 2020.
+
+* Fixed string sorting/comparison for some special characters.
+
+## 1.19.4
+Released 03 July 2020.
+
+* Fixed mouse scroll wheel navigation reversed.
+* Improved translations. Thanks to stefanhahn80 (updated German)!
+
+## 1.19.3
+Released 14 May 2020.
+
+* Fixed error opening chests in a different location in 1.19.2.
+* Fixed color picker shown for non-chests like the fridge.
+
+## 1.19.2
+Released 14 May 2020.
+
+* Fixed chest color picker hidden unless you opened the chest directly.
+* Fixed being able to open the menu during the eat/drink animations and interrupting them.
+
+## 1.19.1
+Released 05 May 2020.
+
+* Moved `data.json` into standard `assets` folder.
+* Updated 'multiplayer limitations' message for 1.19.
+
+## 1.19
+Released 02 May 2020.
+
+* Farmhands in multiplayer can now access chests in all synced locations (including the farm, farmhouse, and constructed farm buildings).
+* The menu now defaults to chests in the current location, if any.
+* Updated Android support (thanks to ZaneYork!).
+* Improved translations. Thanks to D0n-A (updated Russian) and niniack (updated Chinese)!
+
+## 1.18
+Released 08 March 2020.
+
+* Added support for multi-key bindings (like `LeftShift + B`).
+* Fixed compatibility with recent Android versions (thanks to ZaneYork!).
+* Updated translations. Thanks to Annosz (added Hungarian) and Hesper (updated Korean)!
+
+## 1.17.4
+Released 02 February 2020.
+
+* Automate chest options are now applied immediately (if SMAPI 3.3 is installed).
+* Fixed reversed Automate options in the last update.
+
+**Breaking change:** if you already installed the previous update _and_ changed Automate options through Chests Anywhere after updating, this may reverse the ones you changed. If you didn't change any options after updating, your options will be back to normal.
+
 ## 1.17.3
 Released 01 February 2020.
 

@@ -10,7 +10,6 @@ using StardewModdingAPI.Events;
 using StardewValley;
 using StardewValley.Menus;
 using StardewValley.Minigames;
-using SFarmer = StardewValley.Farmer;
 
 namespace Pathoschild.Stardew.DebugMode
 {
@@ -67,10 +66,11 @@ namespace Pathoschild.Stardew.DebugMode
         /// <param name="helper">Provides methods for interacting with the mod directory, such as read/writing a config file or custom JSON files.</param>
         public override void Entry(IModHelper helper)
         {
-            // initialize
+            // init
+            I18n.Init(helper.Translation);
             this.Config = helper.ReadConfig<ModConfig>();
             this.Config.AllowDangerousCommands = this.Config.AllowGameDebug && this.Config.AllowDangerousCommands; // normalize for convenience
-            this.Keys = this.Config.Controls.ParseControls(this.Monitor);
+            this.Keys = this.Config.Controls.ParseControls(helper.Input, this.Monitor);
 
             // hook events
             helper.Events.Input.ButtonPressed += this.OnButtonPressed;
@@ -96,7 +96,7 @@ namespace Pathoschild.Stardew.DebugMode
         private void OnButtonPressed(object sender, ButtonPressedEventArgs e)
         {
             // toggle debug menu
-            if (this.Keys.ToggleDebug.Contains(e.Button))
+            if (this.Keys.ToggleDebug.JustPressedUnique())
             {
                 this.ShowOverlay = !this.ShowOverlay;
                 if (this.Config.AllowGameDebug)
@@ -132,7 +132,7 @@ namespace Pathoschild.Stardew.DebugMode
         /// <summary>Correct the player's position when they warp into an area.</summary>
         /// <param name="location">The location the player entered.</param>
         /// <param name="player">The player who just warped.</param>
-        private void CorrectEntryPosition(GameLocation location, SFarmer player)
+        private void CorrectEntryPosition(GameLocation location, Farmer player)
         {
             switch (location.Name)
             {
@@ -158,7 +158,7 @@ namespace Pathoschild.Stardew.DebugMode
         /// <param name="fromTile">The tile position from which to move the player.</param>
         /// <param name="toTile">The tile position to which to move the player.</param>
         /// <param name="facingDirection">The direction the player should be facing after they're moved.</param>
-        private void MovePlayerFrom(SFarmer player, Vector2 fromTile, Vector2 toTile, PlayerDirection facingDirection)
+        private void MovePlayerFrom(Farmer player, Vector2 fromTile, Vector2 toTile, PlayerDirection facingDirection)
         {
             if (player.getTileX() == (int)fromTile.X && player.getTileY() == (int)fromTile.Y)
             {
@@ -182,6 +182,10 @@ namespace Pathoschild.Stardew.DebugMode
         /// <param name="pixel">A pixel texture that can be stretched and colorized for display.</param>
         private void DrawOverlay(SpriteBatch batch, SpriteFont font, Texture2D pixel)
         {
+            var viewport = Game1.uiMode ? Game1.uiViewport : Game1.viewport;
+            int mouseX = Game1.getMouseX();
+            int mouseY = Game1.getMouseY();
+
             // draw debug info at cursor position
             {
                 // generate debug text
@@ -195,8 +199,8 @@ namespace Pathoschild.Stardew.DebugMode
                 // calculate scroll position
                 int width = (int)(textSize.X + (scrollPadding * 2) + (CommonHelper.ScrollEdgeSize.X * 2));
                 int height = (int)(textSize.Y + (scrollPadding * 2) + (CommonHelper.ScrollEdgeSize.Y * 2));
-                int x = (int)MathHelper.Clamp(Game1.getMouseX() - width, 0, Game1.viewport.Width - width);
-                int y = (int)MathHelper.Clamp(Game1.getMouseY(), 0, Game1.viewport.Height - height);
+                int x = (int)MathHelper.Clamp(mouseX - width, 0, viewport.Width - width);
+                int y = (int)MathHelper.Clamp(mouseY, 0, viewport.Height - height);
 
                 // draw
                 CommonHelper.DrawScroll(batch, new Vector2(x, y), textSize, out Vector2 contentPos, out Rectangle bounds, padding: scrollPadding);
@@ -204,8 +208,8 @@ namespace Pathoschild.Stardew.DebugMode
             }
 
             // draw cursor crosshairs
-            batch.Draw(pixel, new Rectangle(0, Game1.getOldMouseY() - 1, Game1.viewport.Width, 3), Color.Black * 0.5f);
-            batch.Draw(pixel, new Rectangle(Game1.getOldMouseX() - 1, 0, 3, Game1.viewport.Height), Color.Black * 0.5f);
+            batch.Draw(pixel, new Rectangle(0, mouseY - 1, viewport.Width, 3), Color.Black * 0.5f);
+            batch.Draw(pixel, new Rectangle(mouseX - 1, 0, 3, viewport.Height), Color.Black * 0.5f);
         }
 
         /// <summary>Get debug info for the current context.</summary>
@@ -216,8 +220,8 @@ namespace Pathoschild.Stardew.DebugMode
             {
                 Vector2 tile = Game1.currentCursorTile;
 
-                yield return $"{this.Helper.Translation.Get("label.tile")}: {tile.X}, {tile.Y}";
-                yield return $"{this.Helper.Translation.Get("label.map")}:  {Game1.currentLocation.Name}";
+                yield return $"{I18n.Label_Tile()}: {tile.X}, {tile.Y}";
+                yield return $"{I18n.Label_Map()}:  {Game1.currentLocation.Name}";
             }
 
             // menu
@@ -227,9 +231,9 @@ namespace Pathoschild.Stardew.DebugMode
                 Type submenuType = this.GetSubmenu(Game1.activeClickableMenu)?.GetType();
                 string vanillaNamespace = typeof(TitleMenu).Namespace;
 
-                yield return $"{this.Helper.Translation.Get("label.menu")}: {(menuType.Namespace == vanillaNamespace ? menuType.Name : menuType.FullName)}";
+                yield return $"{I18n.Label_Menu()}: {(menuType.Namespace == vanillaNamespace ? menuType.Name : menuType.FullName)}";
                 if (submenuType != null)
-                    yield return $"{this.Helper.Translation.Get("label.submenu")}: {(submenuType.Namespace == vanillaNamespace ? submenuType.Name : submenuType.FullName)}";
+                    yield return $"{I18n.Label_Submenu()}: {(submenuType.Namespace == vanillaNamespace ? submenuType.Name : submenuType.FullName)}";
             }
 
             // minigame
@@ -238,7 +242,7 @@ namespace Pathoschild.Stardew.DebugMode
                 Type minigameType = Game1.currentMinigame.GetType();
                 string vanillaNamespace = typeof(AbigailGame).Namespace;
 
-                yield return $"{this.Helper.Translation.Get("label.minigame")}: {(minigameType.Namespace == vanillaNamespace ? minigameType.Name : minigameType.FullName)}";
+                yield return $"{I18n.Label_Minigame()}: {(minigameType.Namespace == vanillaNamespace ? minigameType.Name : minigameType.FullName)}";
             }
 
             // event
@@ -251,18 +255,18 @@ namespace Pathoschild.Stardew.DebugMode
                 double progress = @event.CurrentCommand / (double)@event.eventCommands.Length;
 
                 if (isFestival)
-                    yield return $"{this.Helper.Translation.Get("label.festival-name")}: {festivalName}";
+                    yield return $"{I18n.Label_FestivalName()}: {festivalName}";
                 else
                 {
-                    yield return $"{this.Helper.Translation.Get("label.event-id")}: {eventID}";
+                    yield return $"{I18n.Label_EventId()}: {eventID}";
                     if (@event.CurrentCommand >= 0 && @event.CurrentCommand < @event.eventCommands.Length)
-                        yield return $"{this.Helper.Translation.Get("label.event-script")}: {@event.eventCommands[@event.CurrentCommand]} ({(int)(progress * 100)}%)";
+                        yield return $"{I18n.Label_EventScript()}: {@event.eventCommands[@event.CurrentCommand]} ({(int)(progress * 100)}%)";
                 }
             }
 
             // music
             if (Game1.currentSong?.Name != null && Game1.currentSong.IsPlaying)
-                yield return $"{this.Helper.Translation.Get("label.song")}: {Game1.currentSong.Name}";
+                yield return $"{I18n.Label_Song()}: {Game1.currentSong.Name}";
         }
 
         /// <summary>Get the submenu for the current menu, if any.</summary>

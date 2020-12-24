@@ -25,17 +25,14 @@ namespace ContentPatcher.Framework.Migrations
             };
         }
 
-        /// <summary>Migrate a lexical token.</summary>
-        /// <param name="lexToken">The lexical token to migrate.</param>
-        /// <param name="error">An error message which indicates why migration failed (if any).</param>
-        /// <returns>Returns whether migration succeeded.</returns>
+        /// <inheritdoc />
         public override bool TryMigrate(ILexToken lexToken, out string error)
         {
             if (!base.TryMigrate(lexToken, out error))
                 return false;
 
             // 1.11 adds pinned keys
-            if (lexToken is LexTokenToken token && token.Name.Equals("Random", StringComparison.InvariantCultureIgnoreCase) && token.InputArg != null && token.InputArg.Text.Contains("|"))
+            if (lexToken is LexTokenToken token && token.Name.Equals("Random", StringComparison.OrdinalIgnoreCase) && token.HasInputArgs() && token.InputArgs.ToString().Contains("|"))
             {
                 error = this.GetNounPhraseError("using pinned keys with the Random token");
                 return false;

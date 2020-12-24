@@ -6,14 +6,16 @@ using Microsoft.Xna.Framework.Graphics;
 using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.Common.Integrations.CustomFarmingRedux;
 using Pathoschild.Stardew.Common.Integrations.ProducerFrameworkMod;
+using Pathoschild.Stardew.Common.Items.ItemData;
 using Pathoschild.Stardew.LookupAnything.Framework;
 using Pathoschild.Stardew.LookupAnything.Framework.Constants;
 using Pathoschild.Stardew.LookupAnything.Framework.Data;
+using Pathoschild.Stardew.LookupAnything.Framework.ItemScanning;
 using Pathoschild.Stardew.LookupAnything.Framework.Models;
 using Pathoschild.Stardew.LookupAnything.Framework.Models.FishData;
 using StardewModdingAPI;
+using StardewModdingAPI.Utilities;
 using StardewValley;
-using StardewValley.Buildings;
 using StardewValley.Characters;
 using StardewValley.GameData.Crafting;
 using StardewValley.GameData.FishPond;
@@ -49,6 +51,9 @@ namespace Pathoschild.Stardew.LookupAnything
         /// <summary>Parses the raw game data into usable models.</summary>
         private readonly DataParser DataParser;
 
+        /// <summary>Scans the game world for owned items.</summary>
+        private readonly WorldItemScanner WorldItemScanner;
+
 
         /*********
         ** Accessors
@@ -64,12 +69,14 @@ namespace Pathoschild.Stardew.LookupAnything
         /// <param name="customFarmingRedux">The Custom Farming Redux integration.</param>
         /// <param name="producerFrameworkMod">The Producer Framework Mod integration.</param>
         /// <param name="metadata">Provides metadata that's not available from the game data directly.</param>
-        public GameHelper(CustomFarmingReduxIntegration customFarmingRedux, ProducerFrameworkModIntegration producerFrameworkMod, Metadata metadata)
+        /// <param name="reflection">Simplifies access to protected code.</param>
+        public GameHelper(CustomFarmingReduxIntegration customFarmingRedux, ProducerFrameworkModIntegration producerFrameworkMod, Metadata metadata, IReflectionHelper reflection)
         {
             this.DataParser = new DataParser(this);
             this.CustomFarmingRedux = customFarmingRedux;
             this.ProducerFrameworkMod = producerFrameworkMod;
             this.Metadata = metadata;
+            this.WorldItemScanner = new WorldItemScanner(reflection);
         }
 
         /// <summary>Reset the low-level cache used to store expensive query results, so the data is recalculated on demand.</summary>
@@ -83,7 +90,7 @@ namespace Pathoschild.Stardew.LookupAnything
         }
 
         /****
-        ** Text helpers
+        ** Date/time helpers
         ****/
         /// <summary>Format a game time in military 24-hour notation.</summary>
         /// <param name="time">The time to format.</param>
@@ -101,6 +108,36 @@ namespace Pathoschild.Stardew.LookupAnything
             return number != -1
                 ? Utility.getSeasonNameFromNumber(number)
                 : season;
+        }
+
+        /// <summary>Get a date from its component parts if they're valid.</summary>
+        /// <param name="day">The day of month.</param>
+        /// <param name="season">The season name.</param>
+        /// <param name="date">The resulting date, if valid.</param>
+        /// <returns>Returns whether the date is valid.</returns>
+        public bool TryGetDate(int day, string season, out SDate date)
+        {
+            return this.TryGetDate(day, season, Game1.year, out date);
+        }
+
+        /// <summary>Get a date from its component parts if they're valid.</summary>
+        /// <param name="day">The day of month.</param>
+        /// <param name="season">The season name.</param>
+        /// <param name="year">The year.</param>
+        /// <param name="date">The resulting date, if valid.</param>
+        /// <returns>Returns whether the date is valid.</returns>
+        public bool TryGetDate(int day, string season, int year, out SDate date)
+        {
+            try
+            {
+                date = new SDate(day, season, year);
+                return true;
+            }
+            catch
+            {
+                date = SDate.Now();
+                return false;
+            }
         }
 
         /****
@@ -132,112 +169,9 @@ namespace Pathoschild.Stardew.LookupAnything
         ///   * removed items held by other players, items floating on the ground, spawned forage, and output in a non-ready machine (except casks which can be emptied anytime);
         ///   * added hay in silos.
         /// </remarks>
-        public IEnumerable<Item> GetAllOwnedItems()
+        public IEnumerable<FoundItem> GetAllOwnedItems()
         {
-            List<Item> items = new List<Item>();
-
-            // in locations
-            foreach (GameLocation location in CommonHelper.GetLocations())
-            {
-                // furniture
-                if (location is DecoratableLocation decorableLocation)
-                {
-                    foreach (Furniture furniture in decorableLocation.furniture)
-                    {
-                        items.Add(furniture);
-
-                        if (furniture is StorageFurniture dresser)
-                            items.AddRange(dresser.heldItems);
-                        else
-                            items.Add(furniture.heldObject.Value);
-                    }
-                }
-
-                // farmhouse fridge
-                if (location is FarmHouse house)
-                    items.AddRange(house.fridge.Value.items);
-
-                // character hats
-                foreach (NPC npc in location.characters)
-                {
-                    items.Add(
-                        (npc as Child)?.hat.Value
-                        ?? (npc as Horse)?.hat.Value
-                    );
-                }
-
-                // building output
-                if (location is BuildableGameLocation buildableLocation)
-                {
-                    foreach (var building in buildableLocation.buildings)
-                    {
-                        if (building is Mill mill)
-                            items.AddRange(mill.output.Value.items);
-                        else if (building is JunimoHut hut)
-                            items.AddRange(hut.output.Value.items);
-                    }
-                }
-
-                // map objects
-                foreach (SObject item in location.objects.Values)
-                {
-                    // chest
-                    if (item is Chest chest)
-                    {
-                        if (chest.playerChest.Value)
-                        {
-                            items.Add(chest);
-                            items.AddRange(chest.items);
-                        }
-                    }
-
-                    // auto-grabber
-                    else if (item.ParentSheetIndex == 165 && item.heldObject.Value is Chest grabberChest)
-                    {
-                        items.Add(item);
-                        items.AddRange(grabberChest.items);
-                    }
-
-                    // craftable
-                    else if (item.bigCraftable.Value)
-                    {
-                        items.Add(item);
-                        if (item.MinutesUntilReady == 0 || item is Cask) // cask output can be retrieved anytime
-                            items.Add(item.heldObject.Value);
-                    }
-
-                    // anything else
-                    else if (!item.IsSpawnedObject)
-                    {
-                        items.Add(item);
-                        items.Add(item.heldObject.Value);
-                    }
-                }
-            }
-
-            // inventory
-            items.AddRange(Game1.player.Items);
-            items.AddRange(new Item[]
-            {
-                Game1.player.shirtItem.Value,
-                Game1.player.pantsItem.Value,
-                Game1.player.boots.Value,
-                Game1.player.hat.Value,
-                Game1.player.leftRing.Value,
-                Game1.player.rightRing.Value
-            });
-
-            // hay in silos
-            int hayCount = Game1.getFarm()?.piecesOfHay.Value ?? 0;
-            while (hayCount > 0)
-            {
-                SObject hay = new SObject(178, 1);
-                hay.Stack = Math.Min(hayCount, hay.maximumStackSize());
-                hayCount -= hay.Stack;
-                items.Add(hay);
-            }
-
-            return items.Where(p => p != null);
+            return this.WorldItemScanner.GetAllOwnedItems();
         }
 
         /// <summary>Get all NPCs currently in the world.</summary>
@@ -253,10 +187,11 @@ namespace Pathoschild.Stardew.LookupAnything
         public int CountOwnedItems(Item item)
         {
             return (
-                from worldItem in this.GetAllOwnedItems()
-                where this.AreEquivalent(worldItem, item)
-                let canStack = worldItem.canStackWith(worldItem)
-                select canStack ? Math.Max(1, worldItem.Stack) : 1
+                from found in this.GetAllOwnedItems()
+                let foundItem = found.Item
+                where this.AreEquivalent(foundItem, item)
+                let canStack = foundItem.canStackWith(foundItem)
+                select canStack ? Math.Max(1, foundItem.Stack) : 1
             ).Sum();
         }
 
@@ -264,7 +199,15 @@ namespace Pathoschild.Stardew.LookupAnything
         /// <param name="npc">The NPC to check.</param>
         public bool IsSocialVillager(NPC npc)
         {
-            return npc.isVillager() && !this.Metadata.Constants.AsocialVillagers.Contains(npc.Name);
+            if (!npc.isVillager())
+                return false;
+
+            if (this.Metadata.Constants.ForceSocialVillagers.TryGetValue(npc.Name, out bool social))
+                return social;
+
+            return
+                Game1.player.friendshipData.ContainsKey(npc.Name)
+                || npc.CanSocialize;
         }
 
         /// <summary>Get how much each NPC likes receiving an item as a gift.</summary>
@@ -481,14 +424,14 @@ namespace Pathoschild.Stardew.LookupAnything
         /// <summary>Get the viewport coordinates from the current cursor position.</summary>
         public Vector2 GetScreenCoordinatesFromCursor()
         {
-            return new Vector2(Game1.getOldMouseX(), Game1.getOldMouseY());
+            return new Vector2(Game1.getMouseX(), Game1.getMouseY());
         }
 
         /// <summary>Get the viewport coordinates represented by a tile position.</summary>
         /// <param name="coordinates">The absolute coordinates.</param>
         public Vector2 GetScreenCoordinatesFromAbsolute(Vector2 coordinates)
         {
-            return coordinates - new Vector2(Game1.viewport.X, Game1.viewport.Y);
+            return coordinates - new Vector2(Game1.uiViewport.X, Game1.uiViewport.Y);
         }
 
         /// <summary>Get the viewport coordinates represented by a tile position.</summary>
@@ -502,10 +445,10 @@ namespace Pathoschild.Stardew.LookupAnything
         /// <summary>Get whether a sprite on a given tile could occlude a specified tile position.</summary>
         /// <param name="spriteTile">The tile of the possible sprite.</param>
         /// <param name="occludeTile">The tile to check for possible occlusion.</param>
-        /// <param name="spriteSize">The largest expected sprite size (measured in tiles).</param>
+        /// <param name="spriteSize">The largest expected sprite size (measured in tiles), or <c>null</c> to use <see cref="Constant.MaxTargetSpriteSize"/>.</param>
         public bool CouldSpriteOccludeTile(Vector2 spriteTile, Vector2 occludeTile, Vector2? spriteSize = null)
         {
-            spriteSize = spriteSize ?? Constant.MaxTargetSpriteSize;
+            spriteSize ??= Constant.MaxTargetSpriteSize;
             return
                 spriteTile.Y >= occludeTile.Y // sprites never extend downward from their tile
                 && Math.Abs(spriteTile.X - occludeTile.X) <= spriteSize.Value.X
@@ -601,6 +544,10 @@ namespace Pathoschild.Stardew.LookupAnything
                 }
             }
 
+            // hat
+            if (item is Hat hat)
+                return new SpriteInfo(FarmerRenderer.hatsTexture, new Rectangle(hat.which.Value * 20 % FarmerRenderer.hatsTexture.Width, hat.which.Value * 20 / FarmerRenderer.hatsTexture.Width * 20 * 4, 20, 20));
+
             // unknown item
             return null;
         }
@@ -642,13 +589,17 @@ namespace Pathoschild.Stardew.LookupAnything
         /// <param name="b">The second item to compare.</param>
         private bool AreEquivalent(Item a, Item b)
         {
-            return
-                // same generic item type
-                a.GetType() == b.GetType()
-                && a.Category == b.Category
-                && a.ParentSheetIndex == b.ParentSheetIndex
+            if (a == null || b == null || a.ParentSheetIndex != b.ParentSheetIndex)
+                return false;
 
-                // same discriminators
+            // special case: torches change from SObject to Torch when placed
+            if (new[] { a, b }.All(p => p is Torch || (p.ParentSheetIndex == 93 && p.GetItemType() == ItemType.Object)))
+                return true;
+
+            // equivalent
+            return
+                a.Category == b.Category
+                && a.GetType() == b.GetType()
                 && a.GetItemType() == b.GetItemType()
                 && (a as Boots)?.indexInTileSheet == (b as Boots)?.indexInTileSheet
                 && (a as BreakableContainer)?.Type == (b as BreakableContainer)?.Type
@@ -657,8 +608,7 @@ namespace Pathoschild.Stardew.LookupAnything
                 && (a as Hat)?.which == (b as Hat)?.which
                 && (a as MeleeWeapon)?.type == (b as MeleeWeapon)?.type
                 && (a as Ring)?.indexInTileSheet == (b as Ring)?.indexInTileSheet
-                && (a as Tool)?.InitialParentTileIndex == (b as Tool)?.InitialParentTileIndex
-                && (a as Tool)?.CurrentParentTileIndex == (b as Tool)?.CurrentParentTileIndex;
+                && (a as Tool)?.InitialParentTileIndex == (b as Tool)?.InitialParentTileIndex;
         }
 
         /// <summary>Get all machine recipes, including those from mods like Producer Framework Mod.</summary>
@@ -675,10 +625,12 @@ namespace Pathoschild.Stardew.LookupAnything
                 List<RecipeModel> customRecipes = new List<RecipeModel>();
                 foreach (ProducerFrameworkRecipe recipe in this.ProducerFrameworkMod.GetRecipes())
                 {
+                    if (recipe.HasContextTags())
+                        continue;
+
                     // remove vanilla recipes overridden by a PFM one
                     // This is always an integer currently, but the API may return context_tag keys in the future.
-                    if (recipe.InputId.HasValue)
-                        recipes.RemoveAll(r => r.Type == RecipeType.MachineInput && r.Ingredients[0].ID == recipe.InputId);
+                    recipes.RemoveAll(r => r.Type == RecipeType.MachineInput && r.MachineParentSheetIndex == recipe.MachineId && r.Ingredients[0].ID == recipe.InputId);
 
                     // add recipe
                     SObject machine = this.GetObjectBySpriteIndex(recipe.MachineId, bigcraftable: true);
@@ -686,7 +638,7 @@ namespace Pathoschild.Stardew.LookupAnything
                         key: null,
                         type: RecipeType.MachineInput,
                         displayType: machine.DisplayName,
-                        ingredients: recipe.Ingredients.Select(p => new RecipeIngredientModel(p.Key, p.Value)),
+                        ingredients: recipe.Ingredients.Select(p => new RecipeIngredientModel(p.InputId.Value, p.Count)),
                         item: ingredient =>
                         {
                             SObject output = this.GetObjectBySpriteIndex(recipe.OutputId);
@@ -698,12 +650,13 @@ namespace Pathoschild.Stardew.LookupAnything
                             return output;
                         },
                         mustBeLearned: false,
-                        exceptIngredients: recipe.ExceptIngredients.Select(id => new RecipeIngredientModel(id, 1)),
+                        exceptIngredients: recipe.ExceptIngredients.Select(id => new RecipeIngredientModel(id.Value, 1)),
                         outputItemIndex: recipe.OutputId,
                         minOutput: recipe.MinOutput,
                         maxOutput: recipe.MaxOutput,
                         outputChance: (decimal)recipe.OutputChance,
-                        isForMachine: p => p is SObject obj && obj.ParentSheetIndex == recipe.MachineId
+                        machineParentSheetIndex: recipe.MachineId,
+                        isForMachine: p => p is SObject obj && obj.GetItemType() == ItemType.BigCraftable && obj.ParentSheetIndex == recipe.MachineId
                     ));
                 }
 
@@ -737,15 +690,30 @@ namespace Pathoschild.Stardew.LookupAnything
                     yield return new RecipeModel(
                         key: null,
                         type: RecipeType.TailorInput,
-                        displayType: "Tailoring",
+                        displayType: I18n.RecipeType_Tailoring(),
                         ingredients: new[] { new RecipeIngredientModel(input.ParentSheetIndex, 1) },
-                        item: input => new Clothing(outputId),
+                        item: _ => this.GetTailoredItem(outputId),
                         mustBeLearned: false,
                         outputItemIndex: recipe.CraftedItemID,
+                        machineParentSheetIndex: null,
                         isForMachine: _ => false
                     );
                 }
             }
+        }
+
+        /// <summary>Get the item produced by a tailoring recipe based on the output ID.</summary>
+        /// <param name="id">The output item ID.</param>
+        /// <remarks>Derived from <see cref="TailoringMenu.CraftItem"/>.</remarks>
+        private Item GetTailoredItem(int id)
+        {
+            if (id < 0)
+                return new SObject(-id, 1);
+
+            if (id < 2000 || id >= 3000)
+                return new Clothing(id);
+
+            return new Hat(id - 2000);
         }
 
         /// <summary>Get an NPC's preference for an item.</summary>

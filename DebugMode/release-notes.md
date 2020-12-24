@@ -1,6 +1,32 @@
 [← back to readme](README.md)
 
 # Release notes
+## 1.12.4
+Released 21 December 2020.
+
+* Updated for Stardew Valley 1.5, including split-screen mode and UI scaling.
+
+## 1.12.3
+Released 21 November 2020.
+
+* Improved translations. Thanks to PanPan-p (added Turkish)!
+
+## 1.12.2
+Released 15 October 2020.
+
+* Refactored translation handling.
+
+## 1.12.1
+Released 02 May 2020.
+
+* Improved translations. Thanks to Annosz (added Hungarian) and D0n-A (updated Russian)!
+
+## 1.12
+Released 08 March 2020.
+
+* Added support for multi-key bindings (like `LeftShift + OemTilde`).
+* Improved translations. Thanks to Enaium (updated Chinese) and Hesper (updated Korean)!
+
 ## 1.11.2
 Released 01 February 2020.
 

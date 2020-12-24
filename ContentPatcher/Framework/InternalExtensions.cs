@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Pathoschild.Stardew.Common.Utilities;
 using StardewModdingAPI;
@@ -15,33 +16,44 @@ namespace ContentPatcher.Framework
         /****
         ** Case-insensitive extensions
         ****/
-        /// <summary>Get whether a value is equal to another, using the invariant culture and ignoring case.</summary>
+        /// <summary>Get whether a value is equal to another, ignoring case.</summary>
         /// <param name="value">The first value to compare.</param>
         /// <param name="other">The second value to compare.</param>
         public static bool EqualsIgnoreCase(this string value, string other)
         {
             return
-                value?.Equals(other, StringComparison.InvariantCultureIgnoreCase)
+                value?.Equals(other, StringComparison.OrdinalIgnoreCase)
                 ?? other == null;
         }
 
-        /// <summary>Get the set difference of two sequences, using the invariant culture and ignoring case.</summary>
+        /// <summary>Get whether a value contains a substring, ignoring case.</summary>
+        /// <param name="value">The first value to compare.</param>
+        /// <param name="other">The second value to compare.</param>
+        public static bool ContainsIgnoreCase(this string value, string other)
+        {
+            if (value == null || other == null)
+                return value == other;
+
+            return value.IndexOf(other, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        /// <summary>Get the set difference of two sequences, ignoring case.</summary>
         /// <param name="source">The first sequence to compare.</param>
         /// <param name="other">The second sequence to compare.</param>
         /// <exception cref="ArgumentNullException"><paramref name="source" /> or <paramref name="other" /> is <see langword="null" />.</exception>
         public static IEnumerable<string> ExceptIgnoreCase(this IEnumerable<string> source, IEnumerable<string> other)
         {
-            return source.Except(other, StringComparer.InvariantCultureIgnoreCase);
+            return source.Except(other, StringComparer.OrdinalIgnoreCase);
         }
 
-        /// <summary>Group the elements of a sequence according to a specified key selector function, comparing the keys using the invariant culture and ignoring case.</summary>
+        /// <summary>Group the elements of a sequence according to a specified key selector function, comparing the keys without case.</summary>
         /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
         /// <param name="source">The sequence whose elements to group.</param>
         /// <param name="keySelector">A function to extract the key for each element.</param>
         /// <exception cref="ArgumentNullException"><paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
         public static IEnumerable<IGrouping<string, TSource>> GroupByIgnoreCase<TSource>(this IEnumerable<TSource> source, Func<TSource, string> keySelector)
         {
-            return source.GroupBy(keySelector, StringComparer.InvariantCultureIgnoreCase);
+            return source.GroupBy(keySelector, StringComparer.OrdinalIgnoreCase);
         }
 
         /// <summary>Sort the elements of a sequence in ascending order by using a specified comparer.</summary>
@@ -51,17 +63,7 @@ namespace ContentPatcher.Framework
         /// <exception cref="ArgumentNullException"><paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
         public static IOrderedEnumerable<TSource> OrderByIgnoreCase<TSource>(this IEnumerable<TSource> source, Func<TSource, string> keySelector)
         {
-            return source.OrderBy(keySelector, StringComparer.InvariantCultureIgnoreCase);
-        }
-
-        /// <summary>Perform a subsequent ordering of the elements in a sequence in ascending order according to a key.</summary>
-        /// <typeparam name="TSource">The type of the elements of <paramref name="source" />.</typeparam>
-        /// <param name="source">The sequence whose elements to group.</param>
-        /// <param name="keySelector">A function to extract the key for each element.</param>
-        /// <exception cref="ArgumentNullException"><paramref name="source" /> or <paramref name="keySelector" /> is <see langword="null" />.</exception>
-        public static IOrderedEnumerable<TSource> ThenByIgnoreCase<TSource>(this IOrderedEnumerable<TSource> source, Func<TSource, string> keySelector)
-        {
-            return source.ThenBy(keySelector, StringComparer.InvariantCultureIgnoreCase);
+            return source.OrderBy(keySelector, StringComparer.OrdinalIgnoreCase);
         }
 
         /****
@@ -76,16 +78,18 @@ namespace ContentPatcher.Framework
 
         /// <summary>Get unique comma-separated values from a token string.</summary>
         /// <param name="tokenStr">The token string to parse.</param>
+        /// <param name="normalize">Normalize a value.</param>
         /// <exception cref="InvalidOperationException">The token string is not ready (<see cref="IContextual.IsReady"/> is false).</exception>
-        public static InvariantHashSet SplitValuesUnique(this ITokenString tokenStr)
+        public static InvariantHashSet SplitValuesUnique(this ITokenString tokenStr, Func<string, string> normalize = null)
         {
-            return new InvariantHashSet(tokenStr.SplitValuesNonUnique());
+            return new InvariantHashSet(tokenStr.SplitValuesNonUnique(normalize));
         }
 
         /// <summary>Get comma-separated values from a token string.</summary>
         /// <param name="tokenStr">The token string to parse.</param>
+        /// <param name="normalize">Normalize a value.</param>
         /// <exception cref="InvalidOperationException">The token string is not ready (<see cref="IContextual.IsReady"/> is false).</exception>
-        public static IEnumerable<string> SplitValuesNonUnique(this ITokenString tokenStr)
+        public static IEnumerable<string> SplitValuesNonUnique(this ITokenString tokenStr, Func<string, string> normalize = null)
         {
             if (tokenStr == null)
                 return Enumerable.Empty<string>();
@@ -93,24 +97,38 @@ namespace ContentPatcher.Framework
             if (!tokenStr.IsReady)
                 throw new InvalidOperationException($"Can't get values from a non-ready token string (raw value: {tokenStr.Raw}).");
 
-            return tokenStr.Value.SplitValuesNonUnique();
+            return tokenStr.Value.SplitValuesNonUnique(normalize);
         }
 
         /// <summary>Get comma-separated values from a string.</summary>
         /// <param name="str">The string to parse.</param>
-        public static IEnumerable<string> SplitValuesNonUnique(this string str)
+        /// <param name="separator">The separator by which to split the value.</param>
+        /// <param name="normalize">Normalize a value.</param>
+        public static IEnumerable<string> SplitValuesNonUnique(this string str, Func<string, string> normalize = null, string separator = ",")
         {
             if (string.IsNullOrWhiteSpace(str))
                 return Enumerable.Empty<string>();
 
             return str
-                .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                .Select(p => p.Trim());
+                .Split(new[] { separator }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(p => normalize != null
+                    ? normalize(p.Trim())
+                    : p.Trim()
+                )
+                .Where(p => p != string.Empty);
         }
 
         /****
-        ** Mod manifest
+        ** Content packs
         ****/
+        /// <summary>Get the raw absolute path for a path within the content pack.</summary>
+        /// <param name="contentPack">The content pack for which to get a path.</param>
+        /// <param name="relativePath">The path relative to the content pack folder.</param>
+        public static string GetFullPath(this IContentPack contentPack, string relativePath)
+        {
+            return Path.Combine(contentPack.DirectoryPath, relativePath);
+        }
+
         /// <summary>Get whether the manifest lists a given mod ID as a dependency.</summary>
         /// <param name="manifest">The manifest.</param>
         /// <param name="modID">The mod ID.</param>

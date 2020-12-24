@@ -3,7 +3,7 @@ using Microsoft.Xna.Framework;
 using Pathoschild.Stardew.TractorMod.Framework.Config;
 using StardewModdingAPI;
 using StardewValley;
-using StardewValley.Objects;
+using StardewValley.Locations;
 using StardewValley.TerrainFeatures;
 using StardewValley.Tools;
 using SObject = StardewValley.Object;
@@ -33,9 +33,10 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The attachment settings.</param>
+        /// <param name="modRegistry">Fetches metadata about loaded mods.</param>
         /// <param name="reflection">Simplifies access to private code.</param>
-        public PickaxeAttachment(PickAxeConfig config, IReflectionHelper reflection)
-            : base(reflection)
+        public PickaxeAttachment(PickAxeConfig config, IModRegistry modRegistry, IReflectionHelper reflection)
+            : base(modRegistry, reflection)
         {
             this.Config = config;
         }
@@ -73,8 +74,8 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
                 return this.UseToolOnTile(tool, tile, player, location);
 
             // break mine containers
-            if (this.Config.BreakMineContainers && tileObj is BreakableContainer container)
-                return container.performToolAction(tool, location);
+            if (this.Config.BreakMineContainers && this.TryBreakContainer(tile, tileObj, tool, location))
+                return true;
 
             // clear weeds
             if (this.Config.ClearWeeds && this.IsWeed(tileObj))
@@ -97,9 +98,19 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
             // 'need to upgrade your tool' messages. Based on ResourceClump.performToolAction.
             if (this.Config.ClearBouldersAndMeteorites)
             {
-                ResourceClump clump = this.GetResourceClumpCoveringTile(location, tile);
+                ResourceClump clump = this.GetResourceClumpCoveringTile(location, tile, player, out var applyTool);
                 if (clump != null && (!this.ResourceUpgradeLevelsNeeded.TryGetValue(clump.parentSheetIndex.Value, out int requiredUpgradeLevel) || tool.UpgradeLevel >= requiredUpgradeLevel))
-                    return this.UseToolOnTile(tool, tile, player, location);
+                {
+                    applyTool(tool);
+                    return true;
+                }
+            }
+
+            // harvest spawned mine objects
+            if (this.Config.HarvestMineSpawns && location is MineShaft && tileObj?.IsSpawnedObject == true && this.CheckTileAction(location, tile, player))
+            {
+                this.CancelAnimation(player, FarmerSprite.harvestItemDown, FarmerSprite.harvestItemLeft, FarmerSprite.harvestItemRight, FarmerSprite.harvestItemUp);
+                return true;
             }
 
             return false;

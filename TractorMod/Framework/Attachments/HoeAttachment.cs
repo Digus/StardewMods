@@ -31,9 +31,10 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
         *********/
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The mod configuration.</param>
+        /// <param name="modRegistry">Fetches metadata about loaded mods.</param>
         /// <param name="reflection">Simplifies access to private code.</param>
-        public HoeAttachment(HoeConfig config, IReflectionHelper reflection)
-            : base(reflection)
+        public HoeAttachment(HoeConfig config, IModRegistry modRegistry, IReflectionHelper reflection)
+            : base(modRegistry, reflection)
         {
             this.Config = config;
         }
@@ -65,6 +66,13 @@ namespace Pathoschild.Stardew.TractorMod.Framework.Attachments
             // collect artifact spots
             if (this.Config.DigArtifactSpots && tileObj?.ParentSheetIndex == HoeAttachment.ArtifactSpotItemID)
                 return this.UseToolOnTile(tool, tile, player, location);
+
+            // harvest ginger
+            if (this.Config.HarvestGinger && tileFeature is HoeDirt dirt && dirt.crop?.whichForageCrop.Value == Crop.forageCrop_ginger && dirt.crop.hitWithHoe((int)tile.X, (int)tile.Y, location, dirt))
+            {
+                dirt.destroyCrop(tile, showAnimation: false, location);
+                return true;
+            }
 
             // till plain dirt
             if (this.Config.TillDirt && tileFeature == null && tileObj == null && this.TryStartCooldown(tile.ToString(), this.TillDirtDelay))

@@ -1,62 +1,80 @@
-**Automate** is a [Stardew Valley](http://stardewvalley.net/) mod which lets you place a chest
+**Automate** is a [Stardew Valley](https://stardewvalley.net/) mod which lets you place a chest
 next to machines (like a furnace, cheese press, bee house, etc), and the machines will
 automatically pull raw items from the chest and push processed items into it.
 
 ## Contents
 * [Install](#install)
 * [Use](#use)
+  * [Basic automation](#basic-automation)
+  * [Factories](#factories)
+  * [Connectors](#connectors)
+  * [Machine priority](#machine-priority)
 * [Configure](#configure)
+  * [config.json](#configjson)
+  * [In-game settings](#in-game-settings)
+  * [Per-machine settings](#per-machine-settings)
 * [Compatibility](#compatibility)
+* [Troubleshooting](#troubleshooting)
+  * [In-game overlay](#in-game-overlay)
+  * [Console command](#console-command)
 * [FAQs](#faqs)
-* [Extensibility for modders](#extensibility-for-modders)
 * [See also](#see-also)
 
 ## Install
 1. [Install the latest version of SMAPI](https://smapi.io/).
-3. Install [this mod from Nexus mods](http://www.nexusmods.com/stardewvalley/mods/1063).
+3. Install [this mod from Nexus mods](https://www.nexusmods.com/stardewvalley/mods/1063).
 4. Run the game using SMAPI.
 
 ## Use
 ### Basic automation
 Place a chest next to a crafting machine (in any direction including diagonal) to connect it.
 Machines connected to a chest will push their output into it, and pull ingredients to process out
-of it. 
+of it.
 
 This can be used to automate...
-* auto-grabbers;
-* [bee houses](http://stardewvalleywiki.com/Bee_House);
-* [casks](http://stardewvalleywiki.com/Cask) (including outside the cellar);
-* [charcoal kilns](http://stardewvalleywiki.com/Charcoal_Kiln);
-* [cheese presses](http://stardewvalleywiki.com/Cheese_Press);
-* [crab pots](http://stardewvalleywiki.com/Crab_Pot);
-* [crystalariums](http://stardewvalleywiki.com/Crystalarium);
-* [fish ponds](http://stardewvalleywiki.com/Fish_Pond);
-* [fruit trees](http://stardewvalleywiki.com/Fruit_Trees);
-* [furnaces](http://stardewvalleywiki.com/Furnace);
-* [garbage cans](http://stardewvalleywiki.com/Garbage_Can);
-* [hay hoppers](http://stardewvalleywiki.com/Hay_Hopper);
-* [Junimo huts](http://stardewvalleywiki.com/Junimo_Hut);
+* [auto-grabbers](https://stardewvalleywiki.com/Auto-Grabber);
+* [bee houses](https://stardewvalleywiki.com/Bee_House);
+* bone mills;
+* bushes (including [blackberry](https://stardewvalleywiki.com/Blackberry), [salmonberry](https://stardewvalleywiki.com/Salmonberry), and [tea](https://stardewvalleywiki.com/Tea_Bush) bushes);
+* [casks](https://stardewvalleywiki.com/Cask) (even outside the cellar);
+* [charcoal kilns](https://stardewvalleywiki.com/Charcoal_Kiln);
+* [cheese presses](https://stardewvalleywiki.com/Cheese_Press);
+* coffee makers;
+* [crab pots](https://stardewvalleywiki.com/Crab_Pot);
+* [crystalariums](https://stardewvalleywiki.com/Crystalarium) (once started with the gem/mineral you want);
+* deconstructors;
+* [fish ponds](https://stardewvalleywiki.com/Fish_Pond) (for output only);
+* [fruit trees](https://stardewvalleywiki.com/Fruit_Trees);
+* [furnaces](https://stardewvalleywiki.com/Furnace) (don't forget they also need coal);
+* [garbage cans](https://stardewvalleywiki.com/Garbage_Can);
+* geode crushers;
+* [hay hoppers](https://stardewvalleywiki.com/Hay_Hopper);
+* hoppers (these act just like chests, except they're output-only);
+* [Junimo huts](https://stardewvalleywiki.com/Junimo_Hut);
 * [incubators (for eggs)](https://stardewvalleywiki.com/Incubator);
-* [kegs](http://stardewvalleywiki.com/Keg);
-* [lightning rods](http://stardewvalleywiki.com/Lightning_Rod);
-* [looms](http://stardewvalleywiki.com/Loom);
-* [mayonnaise machines](http://stardewvalleywiki.com/Mayonnaise_Machine);
-* [mills](http://stardewvalleywiki.com/Mill);
-* [mushroom boxes](http://stardewvalleywiki.com/The_Cave#Mushrooms);
-* [oil makers](http://stardewvalleywiki.com/Oil_Maker);
-* [preserves jars](http://stardewvalleywiki.com/Preserves_Jar);
-* [recycling machines](http://stardewvalleywiki.com/Recycling_Machine);
-* [seed makers](http://stardewvalleywiki.com/Seed_Maker);
-* shipping bins (can be disabled in `config.json`);
-* [silos](http://stardewvalleywiki.com/Silo);
-* [slime egg-presses](http://stardewvalleywiki.com/Slime_Egg);
+* [kegs](https://stardewvalleywiki.com/Keg);
+* [lightning rods](https://stardewvalleywiki.com/Lightning_Rod);
+* [looms](https://stardewvalleywiki.com/Loom);
+* [mayonnaise machines](https://stardewvalleywiki.com/Mayonnaise_Machine);
+* [mills](https://stardewvalleywiki.com/Mill);
+* mini-shipping bins;
+* [mushroom boxes](https://stardewvalleywiki.com/The_Cave#Mushrooms);
+* [oil makers](https://stardewvalleywiki.com/Oil_Maker);
+* [preserves jars](https://stardewvalleywiki.com/Preserves_Jar);
+* [recycling machines](https://stardewvalleywiki.com/Recycling_Machine);
+* [seed makers](https://stardewvalleywiki.com/Seed_Maker);
+* [shipping bins](https://stardewvalleywiki.com/Shipping) (can be disabled in `config.json`);
+* [silos](https://stardewvalleywiki.com/Silo);
+* [slime egg-presses](https://stardewvalleywiki.com/Slime_Egg);
 * [slime incubators](https://stardewvalleywiki.com/Slime_Incubator);
 * [soda machines](https://stardewvalleywiki.com/Soda_Machine);
+* solar panels;
 * [statues of endless fortune](https://stardewvalleywiki.com/Statue_Of_Endless_Fortune);
 * [statues of perfection](https://stardewvalleywiki.com/Statue_of_Perfection);
-* [tappers](http://stardewvalleywiki.com/Tapper);
-* [wood chippers](http://stardewvalleywiki.com/Wood_Chipper);
-* and [worm bins](http://stardewvalleywiki.com/Worm_Bin).
+* statues of true perfection;
+* [tappers](https://stardewvalleywiki.com/Tapper);
+* [wood chippers](https://stardewvalleywiki.com/Wood_Chipper);
+* and [worm bins](https://stardewvalleywiki.com/Worm_Bin).
 
 Automated machines will give you the same XP, achievements, and items you'd get for using them
 directly. If multiple chests are part of a group, they'll all be used in the automation. Input
@@ -106,6 +124,26 @@ example, here are wooden paths used as connectors:
 Workbenches are the only connectors by default. You can edit the `config.json` to add connectors
 (see _[configure](#configure)_ below).
 
+### Machine priority
+The default order that machines are processed is unpredictable and subject to change, except that
+shipping bins are processed last by default.
+
+For example, let's say you have this machine setup and you place two tomatoes in the chest:
+```
+┌──────────┐┌──────────┐┌──────────┐┌──────────┐┌──────────┐
+│  chest   ││   keg    ││   keg    ││ shipping ││ preserves│
+│          ││          ││          ││   bin    ││   jar    │
+└──────────┘└──────────┘└──────────┘└──────────┘└──────────┘
+```
+
+By default, all of the tomatoes will go into the kegs or preserves jar (since the shipping bin has
+a lower priority), but you won't know which ones will get them first. You can [change per-machine
+settings](#per-machine-settings) to set the priority for individual machine types and make them
+predictable.
+
+Note that if all higher-priority machines are busy, any remaining items may go into lower-priority
+machines.
+
 ## Configure
 ### config.json
 The mod creates a `config.json` file in its mod folder the first time you run it. You can open that
@@ -124,16 +162,10 @@ These are the available settings:
   <td>
 
 The configured controller, keyboard, and mouse buttons (see [key bindings](https://stardewvalleywiki.com/Modding:Key_bindings)).
-You can separate multiple buttons with commas. The default value is `U` to toggle the automation
-overlay.
+The default value is `U` to toggle the automation overlay.
 
-  </td>
-</tr>
-<tr>
-  <td><code>AutomateShippingBin</code></td>
-  <td>
-
-Default `true`. Whether the shipping bin should automatically pull items out of connected chests.
+You can separate bindings with commas (like `U, LeftShoulder` for either one), and set multi-key
+bindings with plus signs (like `LeftShift + U`).
 
   </td>
 </tr>
@@ -141,7 +173,8 @@ Default `true`. Whether the shipping bin should automatically pull items out of 
   <td><code>PullGemstonesFromJunimoHuts</code></td>
   <td>
 
-Default `false`. Whether to pull gemstones out of Junimo huts. If true, you won't be able to change Junimo colors by placing gemstones in their hut.
+Whether to pull gemstones out of Junimo huts. If true, you won't be able to change Junimo colors by
+placing gemstones in their hut. Default `false`.
 
   </td>
 </tr>
@@ -149,7 +182,7 @@ Default `false`. Whether to pull gemstones out of Junimo huts. If true, you won'
   <td><code>AutomationInterval</code></td>
   <td>
 
-Default `60`. The number of update ticks between each automation cycle (one second is ≈60 ticks).
+The number of update ticks between each automation cycle (one second is ≈60 ticks). Default `60`.
 
   </td>
 </tr>
@@ -157,9 +190,8 @@ Default `60`. The number of update ticks between each automation cycle (one seco
   <td><code>ConnectorNames</code></td>
   <td>
 
-Default empty. A list of placed item names to treat as [connectors](#connectors) which connect
-adjacent machines together. You must specify the exact _English_ names for any in-game items to
-use. For example:
+A list of placed item names to treat as [connectors](#connectors) which connect adjacent machines
+together. You must specify the exact _English_ names for any in-game items to use. For example:
 
 ```js
 "ConnectorNames": [
@@ -167,6 +199,17 @@ use. For example:
    "Crystal Path"
 ]
 ```
+
+Contains `Workbench` by default.
+
+  </td>
+</tr>
+<tr>
+  <td><code>MachineOverrides</code></td>
+  <td>
+
+The configuration to override for specific machine IDs. See [_per-machine settings_](#per-machine-settings)
+for more info.
 
   </td>
 </tr>
@@ -180,27 +223,59 @@ field | result
 ----- | ------
 `AutoGrabberMod` | If [Auto-Grabber Mod](https://www.nexusmods.com/stardewvalley/mods/2783) is installed, auto-grabbers won't output fertilizer and seeds.
 `BetterJunimos` | If [Better Junimos](https://www.nexusmods.com/stardewvalley/mods/2221) is installed, Junimo huts won't output fertilizer and seeds.
+`WarnForMissingBridgeMod` | Whether to log a warning if you install a custom-machine mod that requires a separate compatibility patch which isn't installed.
 
   </td>
 </tr>
 </table>
 
 ### In-game settings
-Installing [Chests Anywhere](https://www.nexusmods.com/stardewvalley/mods/518) too lets you set
+Installing [Chests Anywhere](https://www.nexusmods.com/stardewvalley/mods/518) lets you set
 per-chest options directly in-game:
 > ![](screenshots/chests-anywhere-config.png)
 
 This adds four options for automate:
-* **Put items in this chest first:** Automate will only push machine output into this chest (until
-  it's full).
-* **Don't put items in this chest:** Automate won't push any machine output into this chest.
-* **Don't take items from this chest:** Automate won't take machine input from this chest.
-* **Don't use this chest for automation:** Automate will completely ignore the chest, so it won't
-  be connected to any machines.
+* **Store items in this chest:** Automate will push machine output into this chest.
+* **Store items in this chest first:** Automate will push machine output into this chest first, and
+  only try other chests if it's full.
+* **Take items from this chest:** Automate will take machine input from this chest.
+* **Take items from this chest first:** Automate will take machine input from this chest first, and
+  only try other chests if it doesn't have any input for a machine.
 
-If you don't have Chests Anywhere installed, you can edit the chest names a different way and use
-these substrings: `|automate:output|` (put items in this chest first) or `|automate:ignore|` (don't
-use this chest in automation).
+(To do this without Chests Anywhere, see the [technical documentation](technical.md).)
+
+### Per-machine settings
+_This is advanced; most players won't need to configure Automate to this extent._
+
+You can set some options for individual machine types by [editing the `config.json`](#config.json),
+and adding an entry to the `MachineOverrides` field. If a machine isn't listed in that field, it'll
+use the default values. This works for all automated machines, including those added by other mods.
+
+Each entry in `MachineOverrides` is identified by the internal machine type ID (_not_ the machine
+name you see in-game). You can [run the `automate summary` command](#console-command) to see a list
+of machines being automated; the names shown in the list are the machine type IDs.
+
+
+For example:
+```js
+"MachineOverrides": {
+    "ShippingBin": {
+        "Enabled": true,
+        "Priority": -1
+    },
+    "Tapper": {
+        "Enabled": true,
+        "Priority": 0
+    },
+}
+```
+
+Available options for each machine:
+
+field | purpose
+----- | -------
+`Enabled` | Whether the machine type should be automated (default `true`).
+`Priority` | The order in which this machine should be processed relative to other machines (default `0`). Higher values are processed first for both input and output.
 
 ## Compatibility
 Automate is compatible with Stardew Valley 1.4+ on Linux/Mac/Windows, both single-player and
@@ -209,277 +284,60 @@ keep it installed and use the overlay, their mod just won't automate anything.
 
 Automate is compatible with...
 
-* [Auto-Grabber Mod](https://www.nexusmods.com/stardewvalley/mods/2783) (seeds/fertilizer in auto-grabbers will be ignored).
-* [Better Junimos](https://www.nexusmods.com/stardewvalley/mods/2221) (seeds/fertilizer in Junimo huts will be ignored).
-* [Custom Farming Redux](https://www.nexusmods.com/stardewvalley/mods/991) (see its optional 'CFAutomate' download to enable automation).
+* [Auto-Grabber Mod](https://www.nexusmods.com/stardewvalley/mods/2783) (seeds/fertilizer in
+  auto-grabbers will be ignored).
+* [Better Junimos](https://www.nexusmods.com/stardewvalley/mods/2221) (seeds/fertilizer in Junimo
+  huts will be ignored).
+* [Custom Farming Redux](https://www.nexusmods.com/stardewvalley/mods/991) (see its optional
+  'CFAutomate' download to enable automation).
+* [Producer Framework Mod](https://www.nexusmods.com/stardewvalley/mods/4970) (with the
+  [PFMAutomate](https://www.nexusmods.com/stardewvalley/mods/5038) addon).
+
+## Troubleshooting
+### In-game overlay
+Press `U` in-game ([configurable](#configure)) to toggle the automation overlay. This highlights
+machines, containers, and connectors which are automated (green) or automateable but not currently
+automated (red):
+
+> ![](screenshots/connectors.png)
+
+### Console command
+Enter `automate summary` directly in the SMAPI console to view a summary of your machine groups:
+
+> ![](screenshots/console-command.png)
 
 ## FAQs
 ### Why did my chests/machines disappear?
 Some common reasons:
-* NPCs remove items placed in their path, so you shouldn't place anything where they walk. (You can
-  use [path connectors](#connectors) to connect town trash cans to an out-of-the-way chest.)
+* NPCs destroy items placed in their path, so you shouldn't place anything where they can walk.
+  (You can use [path connectors](#connectors) to connect crab pots and trash cans to out-of-the-way
+  chests or machines.)
 * Festivals and the Night Market use temporary maps, so items placed there may disappear when the
   map is switched back to normal.
 
 Automate doesn't remove placed objects, so it's never at fault for disappearing chests or machines.
-
-### What's the order of processed machines?
-The order that machines are processed is essentially unpredictable for players. It depends on the
-internal algorithm for finding machines, which is subject to change.
-
-### What's the order of items taken from chests?
-For each machine, the available chests are combined into one inventory (so items may be taken from
-multiple chests simultaneously) and then scanned until Automate finds enough items to fill a recipe
-for that machine. The order is difficult to predict with multiple chests, but fairly easy if there's
-only one connected chest.
-
-For example, let's say you have one chest containing these item stacks:  
-`coal`  
-`3× copper ore`  
-`3× iron ore`  
-`2× copper ore`  
-`2× iron ore`
-
-A furnace has two recipes with those ingredients: `coal` + `5× copper ore` = `copper bar`, and
-`coal` + `5× iron ore` = `iron bar`. Automate will scan the items from left to right and top to bottom,
-and collect items until it has a complete recipe. In this case, the furnace will start producing a
-copper bar:
-
-1. Add `coal` from first stack (two unfinished recipes):  
-   ❑ `coal` + `0 of 5× copper ore` = `copper bar`  
-   ❑ `coal` + `0 of 5× iron ore` = `iron bar`
-2. Add `3× copper ore` from second stack (two unfinished recipes):  
-   ❑ `coal` + `3 of 5× copper ore` = `copper bar`  
-   ❑ `coal` + `0 of 5× iron ore` = `iron bar`
-3. Add `3× iron ore` from third stack (two unfinished recipes):  
-   ❑ `coal` + `3 of 5× copper ore` = `copper bar`  
-   ❑ `coal` + `3 of 5× iron ore` = `iron bar`
-4. Add `2× copper ore` from fourth stack (one recipe filled):  
-   ✓ `coal` + `5× copper ore` = `copper bar`  
-   ❑ ~~`coal` + `3 of 5× iron ore` = `iron bar`~~
-
-### Which chest will machine output go into?
-The available chests are sorted by discovery order (which isn't predictable), then prioritised in
-this order:
-
-1. chests with the "Put items in this chest first" option (see _[In-game settings](#in-game-settings)_);
-2. chests which already contain an item of the same type;
-3. any chest.
 
 ### Is there a limit to how many machines can be connected?
 Automate optimises machine connections internally, so there's no upper limit. The most I've tried is
 [630 machines in one group](https://community.playstarbound.com/threads/automate.131913/page-11#post-3238142);
 that didn't cause any issues, so you can just keep adding more if you want.
 
+### What's the order for chest/machine handling?
+When storing items, Automate prefers chests which either have the "Put items in this chest first" option (see
+[_in-game settings_ in the README](README.md#in-game-settings)) or already have an item of the
+same type. The order when taking items is a bit more complicated. For more info, see the
+[technical documentation](technical.md).
+
+For machines, see [machine priority](#machine-priority).
+
 ### What if I don't want a specific chest to be connected?
 See _[In-game settings](#in-game-settings)_.
 
-## Extensibility for modders
-Automate has a [mod-provided API](https://stardewvalleywiki.com/Modding:Modder_Guide/APIs/Integrations#Mod-provided_APIs)
-you can use to add custom machines, containers, and connectors.
-
-### Basic concepts
-These basic concepts are core to the Automate API:
-
-<dl>
-<dt>Entity</dt>
-<dd>A placed item, terrain feature, building, or other in-game thing.</dd>
-
-<dt>Connector</dt>
-<dd>Something which can be added to a machine group (thus extending its range), but otherwise has
-no logic of its own. It has no state, input, or output.</dd>
-
-<dt>Container</dt>
-<dd>Something which stores and retrieves items (usually a chest).</dd>
-
-<dt>Machine</dt>
-<dd>Something which has a state (e.g. empty or processing) and accepts input, provides output, or
-both. This doesn't need to be a 'machine' in the gameplay sense; Automate provides default machines
-for shipping bins and fruit trees, for example.</dd>
-
-<dt>Machine group</dt>
-<dd>
-
-A set of machines, containers, and connectors which are chained together. You can press `U` in-game
-(configurable) to see machine groups highlighted in green. For example, these are two machine groups:  
-![](screenshots/extensibility-machine-groups.png)
-
-</dd>
-</dl>
-
-### Access the API
-To access the API:
-
-1. Add a reference to the `Automate.dll` file. Make sure it's [_not_ copied to your build output](https://github.com/Pathoschild/SMAPI/blob/develop/docs/mod-build-config.md#ignore-files).
-2. Hook into [SMAPI's `GameLoop.GameLaunched` event](https://stardewvalleywiki.com/Modding:Modder_Guide/APIs/Events#GameLoop.GameLaunched)
-   and get a copy of the API:
-   ```c#
-   IAutomateAPI automate = this.Helper.ModRegistry.GetApi<IAutomateAPI>("Pathoschild.Automate");
-   ```
-3. Use the API to extend Automate (see below).
-
-### Add connectors, containers, and machines
-You can add automatables by implementing an `IAutomationFactory`. Automate will handle the core
-logic (like finding entities, linking automatables into groups, etc); you just need to return the
-automatable for a given entity. You can't change the automation for an existing automatable though;
-if Automate already has an automatable for an entity, it won't call your factory.
-
-First, let's create a basic machine that transmutes an iron bar into gold in two hours:
-
-```c#
-using Microsoft.Xna.Framework;
-using Pathoschild.Stardew.Automate.Framework;
-using StardewValley;
-using SObject = StardewValley.Object;
-
-namespace YourModName
-{
-    /// <summary>A machine that turns iron bars into gold bars.</summary>
-    public class TransmuterMachine : IMachine
-    {
-        /*********
-        ** Fields
-        *********/
-        /// <summary>The underlying entity.</summary>
-        private readonly SObject Entity;
-
-
-        /*********
-        ** Accessors
-        *********/
-        /// <summary>The location which contains the machine.</summary>
-        public GameLocation Location { get; }
-
-        /// <summary>The tile area covered by the machine.</summary>
-        public Rectangle TileArea { get; }
-
-
-        /*********
-        ** Public methods
-        *********/
-        /// <summary>Construct an instance.</summary>
-        /// <param name="entity">The underlying entity.</param>
-        /// <param name="location">The location which contains the machine.</param>
-        /// <param name="tile">The tile covered by the machine.</param>
-        public TransmuterMachine(SObject entity, GameLocation location, in Vector2 tile)
-        {
-            this.Entity = entity;
-            this.Location = location;
-            this.TileArea = new Rectangle((int)tile.X, (int)tile.Y, 1, 1);
-        }
-
-        /// <summary>Get the machine's processing state.</summary>
-        public MachineState GetState()
-        {
-            if (this.Entity.heldObject.Value == null)
-                return MachineState.Empty;
-
-            return this.Entity.readyForHarvest.Value
-                ? MachineState.Done
-                : MachineState.Processing;
-        }
-
-        /// <summary>Get the output item.</summary>
-        public ITrackedStack GetOutput()
-        {
-            return new TrackedItem(this.Entity.heldObject.Value, onEmpty: item =>
-            {
-                this.Entity.heldObject.Value = null;
-                this.Entity.readyForHarvest.Value = false;
-            });
-        }
-
-        /// <summary>Provide input to the machine.</summary>
-        /// <param name="input">The available items.</param>
-        /// <returns>Returns whether the machine started processing an item.</returns>
-        public bool SetInput(IStorage input)
-        {
-            if (input.TryGetIngredient(SObject.ironBar, 1, out IConsumable ingredient))
-            {
-                ingredient.Take();
-                this.Entity.heldObject.Value = new SObject(SObject.goldBar, 1);
-                this.Entity.MinutesUntilReady = 120;
-                return true;
-            }
-
-            return false;
-        }
-    }
-}
-```
-
-Next, let's create a factory which returns the new machine. This example assumes you've added an
-in-game object with ID 2000 that you want to automate.
-
-```c#
-using Microsoft.Xna.Framework;
-using StardewValley;
-using StardewValley.Buildings;
-using StardewValley.Locations;
-using StardewValley.TerrainFeatures;
-using SObject = StardewValley.Object;
-
-namespace YourModName
-{
-    public class MyAutomationFactory : IAutomationFactory
-    {
-        /// <summary>Get a machine, container, or connector instance for a given object.</summary>
-        /// <param name="obj">The in-game object.</param>
-        /// <param name="location">The location to check.</param>
-        /// <param name="tile">The tile position to check.</param>
-        /// <returns>Returns an instance or <c>null</c>.</returns>
-        public IAutomatable GetFor(SObject obj, GameLocation location, in Vector2 tile)
-        {
-            if (obj.ParentSheetIndex == 2000)
-                return new TransmuterMachine(obj, location, tile);
-
-            return null;
-        }
-
-        /// <summary>Get a machine, container, or connector instance for a given terrain feature.</summary>
-        /// <param name="feature">The terrain feature.</param>
-        /// <param name="location">The location to check.</param>
-        /// <param name="tile">The tile position to check.</param>
-        /// <returns>Returns an instance or <c>null</c>.</returns>
-        public IAutomatable GetFor(TerrainFeature feature, GameLocation location, in Vector2 tile)
-        {
-            return null;
-        }
-
-        /// <summary>Get a machine, container, or connector instance for a given building.</summary>
-        /// <param name="building">The building.</param>
-        /// <param name="location">The location to check.</param>
-        /// <param name="tile">The tile position to check.</param>
-        /// <returns>Returns an instance or <c>null</c>.</returns>
-        public IAutomatable GetFor(Building building, BuildableGameLocation location, in Vector2 tile)
-        {
-            return null;
-        }
-
-        /// <summary>Get a machine, container, or connector instance for a given tile position.</summary>
-        /// <param name="location">The location to check.</param>
-        /// <param name="tile">The tile position to check.</param>
-        /// <returns>Returns an instance or <c>null</c>.</returns>
-        /// <remarks>Shipping bin logic from <see cref="Farm.leftClick"/>, garbage can logic from <see cref="Town.checkAction"/>.</remarks>
-        public IAutomatable GetForTile(GameLocation location, in Vector2 tile)
-        {
-            return null;
-        }
-    }
-}
-```
-
-And finally, add your factory to the automate API (see [_access the API_](#access-the-api) above):
-
-```c#
-IAutomateAPI automate = ...;
-automate.AddFactory(new MyAutomationFactory());
-```
-
-That's it! When Automate scans a location for automatables, it'll call your `GetFor` method and add
-your custom machine to its normal automation.
+### Can other mods extend Automate?
+Yep. Automate provides APIs that let other mods add custom machines/containers/connectors or make
+other changes. For more info, see the [technical documentation](technical.md).
 
 ## See also
+* [Technical documentation](technical.md)
 * [Release notes](release-notes.md)
-* [Nexus mod](http://www.nexusmods.com/stardewvalley/mods/1063)
-* [Discussion thread](http://community.playstarbound.com/threads/automate.131913)
+* [Nexus mod](https://www.nexusmods.com/stardewvalley/mods/1063)

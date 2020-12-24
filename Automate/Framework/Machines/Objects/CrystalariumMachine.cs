@@ -6,6 +6,7 @@ using SObject = StardewValley.Object;
 namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
 {
     /// <summary>A crystalarium that accepts input and provides output.</summary>
+    /// <remarks>Derived from <see cref="SObject.performObjectDropInAction"/> (search for 'Crystalarium').</remarks>
     internal class CrystalariumMachine : GenericObjectMachine<SObject>
     {
         /*********
@@ -32,12 +33,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
         /// <summary>Get the machine's processing state.</summary>
         public override MachineState GetState()
         {
-            if (this.Machine.heldObject.Value == null)
-                return MachineState.Disabled;
-
-            return this.Machine.readyForHarvest.Value
-                ? MachineState.Done
-                : MachineState.Processing;
+            return this.GetGenericState(emptyState: MachineState.Disabled);
         }
 
         /// <summary>Get the output item.</summary>

@@ -1,6 +1,99 @@
 [← back to readme](README.md)
 
 # Release notes
+## 1.19
+Released 21 December 2020.
+
+* Updated for Stardew Valley 1.5, including...
+  * split-screen mode and UI scaling;
+  * new machines (bone mill, coffee maker, deconstructor, geode crusher, heavy tapper, hoppers, mini-shipping bin, ostrich incubator, solar panel, and statue of true perfection);
+  * default shipping bin being moveable;
+  * new chest and path types.
+
+**Breaking changes for mod authors:**
+* If you added a `chest.Capacity` property for Automate, you should patch or override the new
+  `chest.GetActualCapacity()` method in 1.5 instead.
+* Automate previously stored automation options in the chest name using tags like
+  `|automate:no-store|`. These are now stored in the new `chest.modData` field added in 1.5; existing
+  chests will be migrated automatically.
+
+## 1.18.4
+Released 05 December 2020.
+
+* Internal changes to simplify upcoming updates.
+
+## 1.18.3
+Released 21 November 2020.
+
+* When a mod adds custom machines but is missing something for Automate compatibility, Automate now shows a warning with instructions. This can be disabled in `config.json`.
+* Fixed constructed shipping bins triggering the main shipping bin's animation.
+* Fixed shipped items not added to existing stacks if possible.
+
+## 1.18.2
+Released 04 November 2020.
+
+* Fixed machine priority inverted in 1.18.
+
+## 1.18.1
+Released 15 October 2020.
+
+* Refactored to prepare for future game updates.
+
+## 1.18
+Released 12 September 2020.
+
+* Added [`automate summary` console command](README.md#console-command).
+* You can now [disable automation for specific machine types](README.md#per-machine-settings).
+* Fixed shipping bins not having a lower priority than other machines by default as intended. Affected `config.json` will be corrected automatically.
+
+## 1.17.3
+Released 19 August 2020.
+
+* Fixed seed maker not recognizing crops added after the initial `Data/Crops` load.
+
+## 1.17.2
+Released 08 August 2020.
+
+* Fixed bushes harvested out of season in some cases.
+* Fixed berry bushes not applying forage level bonus.
+
+## 1.17.1
+Released 02 August 2020.
+
+* Fixed string sorting/comparison for some special characters.
+
+## 1.17
+Released 02 May 2020.
+
+* Added machine type priority.
+* Added support for berry bushes.
+* Shipping bins now have a lower priority than other machines by default.
+* Optimized machine scan when a location changes.
+* Internal change to let certain mods patch Automate behaviour more easily.
+* Fixed broken custom items in chests causing machines to stop working and spam errors. Automate now ignores broken items.
+* Fixed bushes in garden pots not automated.
+* Fixed furnaces not recognizing bouquets.
+* Fixed automated trash cans producing different output than they would if checked manually in some cases.
+* Fixed giftbox being automated as a chest.
+* Fixed search error if you have broken XNB mods.
+* Moved `data.json` into standard `assets` subfolder.
+
+## 1.16
+Released 08 March 2020.
+
+* Added support for tea bushes (thanks to stellarashes!).
+* Added support for multi-key bindings (like `LeftShift + U`).
+* Added compatibility with Mega Storage (thanks to ImJustMatt!).
+
+## 1.15.1
+Released 02 February 2020.
+
+* Chest options set through Chests Anywhere are now applied immediately (if SMAPI 3.3 is installed).
+* Fixed reversed options set through Chests Anywhere in the last update.
+* Internal refactoring.
+
+**Breaking change:** if you already installed the previous update _and_ changed Automate options through Chests Anywhere after updating, this may reverse the ones you changed. If you didn't change any options after updating, your options will be back to normal.
+
 ## 1.15
 Released 01 February 2020.
 
@@ -124,7 +217,6 @@ Released 01 August 2018.
 * Added optional connectors (e.g. connect machines using paths).
 * Added support for ignoring specific chests.
 * Fixed various bugs related to multi-tile machines (e.g. buildings).
-* **Breaking change:** to prefer a chest for output, add `|automate:output|` to the chest name instead of just `output`.
 
 ## 1.9.1
 Released 14 February 2018.

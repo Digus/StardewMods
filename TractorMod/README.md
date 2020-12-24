@@ -34,11 +34,11 @@ hold item  | default effects | optional effects (disabled by default)
 axe        | clear debris; clear dead crops; cut giant crops. | chop down bushes and trees; clear live crops.
 fertilizer | fertilize crops and trees. | —
 grass starter | plant grass. | —
-hoe        | till dirt; clear weeds; dig artifact spots. | —
+hoe        | till dirt; clear weeds; dig artifact spots and ginger. | —
 melee weapon | clear dead crops; break mine containers. | attack monsters.
 milk pail  | collect milk from farm animals. | —
-pickaxe    | break rocks; clear tilled dirt; clear dead crops. | break paths/flooring; break placed objects.
-scythe     | harvest crops, flowers, bushes, fruit trees, forage; clear weeds and dead crops. | collect machine output.
+pickaxe    | break rocks; clear tilled dirt; clear dead crops; harvest spawned mine items. | break paths/flooring; break placed objects.
+scythe     | harvest crops, flowers, bushes, fruit trees, forage, tree seeds, and spawned mine items; clear weeds and dead crops. | collect machine output.
 seeds      | plant seeds in dirt. | —
 shears     | shear wool from farm animals. | —
 slingshot  | — | shoot one projectile/tile/second in the aimed direction.
@@ -48,10 +48,20 @@ Tractors use no stamina when using tools, and the watering can won't run out of 
 consume fertilizer or seeds when you sow those, though.
 
 ## Configure
+### In-game settings
+If you have [Generic Mod Config Menu](https://www.nexusmods.com/stardewvalley/mods/5098) installed,
+you can click the cog button (⚙) on the title screen to configure the mod. Hover the cursor over
+a field for details, or see the next section.
+
+![](screenshots/generic-config-menu.png)
+
+### `config.json` file
 The mod creates a `config.json` file in its mod folder the first time you run it. You can open that
 file in a text editor to configure the mod.
 
-### Global settings
+<dl>
+<dt>Global settings:<dt>
+<dd>
 <table>
 <tr>
 <th>setting</th>
@@ -67,12 +77,16 @@ file in a text editor to configure the mod.
 <td>
 
 The configured controller, keyboard, and mouse buttons (see [key bindings](https://stardewvalleywiki.com/Modding:Key_bindings)).
-You can separate multiple buttons with commas. The default keyboard bindings are `Backspace` to
-summon a tractor. Available inputs:
-* `SummonTractor`: warp an available tractor to your position.
-* `DismissTractor`: return the tractor you're riding to its home.
-* `HoldToActivate`: if specified, the tractor will only do something while you're holding this
-  button. If nothing is specified, the tractor will work automatically while you're riding it.
+The available controls are...
+
+field | action | default
+----- | ------ | -------
+`SummonTractor` | warp an available tractor to your position. | `Backspace`
+`DismissTractor` | return the tractor you're riding to its home. | `Backspace`
+`HoldToActivate` | if specified, the tractor will only do something while you're holding this button. If nothing is specified, the tractor will work automatically while you're riding it. | _none_
+
+You can separate bindings with commas (like `Backspace, LeftShoulder` for either one), and set
+multi-key bindings with plus signs (like `LeftShift + Backspace`).
 
 </td>
 </tr>
@@ -189,10 +203,11 @@ Whether you can summon a temporary tractor without building a garage first. Defa
 
 </td>
 </tr>
-
 </table>
+</dd>
 
-### Standard tool features
+<dt>Standard tool features:</dt>
+<dd>
 The `StandardAttachments` section lets you configure the tractor effects when holding a specific tool or item:
 
 <table>
@@ -215,7 +230,8 @@ field                    | default | effect
 `ClearFruitTreeSeed`     | false   | Whether to clear fruit tree seeds.
 `ClearFruitTreeSaplings` | false   | Whether to clear fruit trees that aren't fully grown.
 `CutGrownFruitTrees`     | false   | Whether to clear fully-grown fruit trees.
-`ClearTreeSeeds`         | false   | Whether to clear non-fruit trees that aren't fully grown.
+`ClearTreeSeeds`         | false   | Whether to clear non-fruit tree seeds.
+`ClearTreeSaplings`      | false   | Whether to clear non-fruit trees that aren't fully grown.
 `CutGrownTrees`          | false   | Whether to clear full-grown non-fruit trees.
 `CutTappedTrees`         | false   | Whether to cut non-fruit trees that have a tapper.
 `CutBushes`              | false   | Whether to cut choppable bushes.
@@ -239,7 +255,7 @@ Configure the tractor effects when holding a fertilizer item:
 
 field    | default | effect
 -------- | ------- | ------
-`Enable` | true    | Whether to apply the fertilizer to tilled dirt.
+`Enable` | true    | Whether to apply the fertilizer to crops and tilled dirt.
 
 </td>
 </tr>
@@ -276,6 +292,7 @@ field              | default | effect
 `TillDirt`         | true    | Whether to till empty dirt.
 `ClearWeeds`       | true    | Whether to clear weeds.
 `DigArtifactSpots` | true    | Whether to dig artifact spots.
+`HarvestGinger`    | true    | Whether to harvest spawned ginger.
 
 </td>
 </tr>
@@ -336,6 +353,7 @@ field                        | default | effect
 `ClearObjects`               | false   | Whether to clear placed objects.
 `BreakMineContainers`        | true    | Whether to break containers in the mine.
 `ClearWeeds`                 | true    | Whether to clear weeds.
+`HarvestMineSpawns`          | true    | Whether to harvest spawned mine items like quartz and frozen tears.
 
 </td>
 </tr>
@@ -357,7 +375,7 @@ field               | default | effect
 `HarvestForage`     | true    | Whether to harvest forage.
 `HarvestFruitTrees` | true    | Whether to harvest fruits on fruit trees.
 `HarvestMachines`   | false   | Whether to collect machine output.
-`HarvestGrass`      | true    | Whether to cut down grass. If you have free silo space, this gives you hay as usual.
+`HarvestGrass`      | true    | Whether to cut tall grass. If you have free silo space, this gives you hay as usual.
 `ClearDeadCrops`    | true    | Whether to clear dead crops.
 `ClearWeeds`        | true    | Whether to clear weeds.
 
@@ -449,8 +467,11 @@ field    | default | effect
 </td>
 </tr>
 </table>
+</dd>
 
-### Custom tools
+<dt>Custom tools:</dt>
+<dd>
+
 The `CustomAttachments` enables custom items/tools while riding the tractor. Tools will be used on
 each surrounding tile, while items will be put down. If you specify something that's already
 supported (like the axe), this overrides all limitations on its use.
@@ -462,8 +483,8 @@ example:
 "CustomAttachments": ["Axe", "Mega Bomb"]
 ```
 
-</td>
-</tr>
+</dd>
+</dl>
 
 
 ## Custom textures
@@ -482,5 +503,4 @@ won't see the tractor/garage textures or be able to use its features.
 ## See also
 * [Release notes](release-notes.md)
 * [Nexus mod](http://www.nexusmods.com/stardewvalley/mods/1401)
-* [Discussion thread](http://community.playstarbound.com/threads/tractor-mod.136649/)
 * Derived from [TractorMod](https://github.com/lambui/StardewValleyMod_TractorMod) by PhthaloBlue (@lambui), rewritten with their permission.

@@ -6,7 +6,7 @@ using SObject = StardewValley.Object;
 namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
 {
     /// <summary>A bee house that accepts input and provides output.</summary>
-    /// <remarks>See the game's machine logic in <see cref="SObject.performDropDownAction"/>, <see cref="SObject.checkForAction"/>, and <see cref="SObject.minutesElapsed"/>.</remarks>
+    /// <remarks>Derived from <see cref="SObject.performDropDownAction"/>, <see cref="SObject.checkForAction"/>, and <see cref="SObject.minutesElapsed"/> (search for 'Bee House').</remarks>
     internal class BeeHouseMachine : GenericObjectMachine<SObject>
     {
         /*********
@@ -22,7 +22,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
         /// <summary>Get the machine's processing state.</summary>
         public override MachineState GetState()
         {
-            return Game1.currentSeason == "winter"
+            return this.Location.GetSeasonForLocation() == "winter"
                 ? MachineState.Disabled
                 : base.GetState();
         }
@@ -77,7 +77,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
             SObject machine = this.Machine;
 
             machine.heldObject.Value = new SObject(Vector2.Zero, 340, null, false, true, false, false);
-            machine.MinutesUntilReady = 2400 - Game1.timeOfDay + 4320;
+            machine.MinutesUntilReady = Utility.CalculateMinutesUntilMorning(Game1.timeOfDay, 4);
             machine.readyForHarvest.Value = false;
             machine.showNextIndex.Value = false;
         }

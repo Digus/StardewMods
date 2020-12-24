@@ -5,6 +5,7 @@ using SObject = StardewValley.Object;
 namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
 {
     /// <summary>A mushroom box that accepts input and provides output.</summary>
+    /// <remarks>Derived from <see cref="SObject.DayUpdate"/> (search for 'case 128') and <see cref="SObject.minutesElapsed"/> (search for 'Mushroom Box').</remarks>
     internal class MushroomBoxMachine : GenericObjectMachine<SObject>
     {
         /*********
@@ -20,9 +21,7 @@ namespace Pathoschild.Stardew.Automate.Framework.Machines.Objects
         /// <summary>Get the machine's processing state.</summary>
         public override MachineState GetState()
         {
-            return this.Machine.heldObject.Value != null && this.Machine.readyForHarvest.Value
-                ? MachineState.Done
-                : MachineState.Processing;
+            return this.GetGenericState(emptyState: MachineState.Processing);
         }
 
         /// <summary>Get the output item.</summary>
