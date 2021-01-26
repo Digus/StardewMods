@@ -4,7 +4,6 @@ using System.Linq;
 using Microsoft.Xna.Framework;
 using Pathoschild.Stardew.Common;
 using Pathoschild.Stardew.DataLayers.Framework;
-using StardewModdingAPI;
 using StardewValley;
 using StardewValley.TerrainFeatures;
 using SObject = StardewValley.Object;
@@ -39,10 +38,8 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
         /// <summary>Construct an instance.</summary>
         /// <param name="config">The data layer settings.</param>
         /// <param name="mods">Handles access to the supported mod integrations.</param>
-        /// <param name="input">The API for checking input state.</param>
-        /// <param name="monitor">Writes messages to the SMAPI log.</param>
-        public SprinklerLayer(LayerConfig config, ModIntegrations mods, IInputHelper input, IMonitor monitor)
-            : base(I18n.Sprinklers_Name(), config, input, monitor)
+        public SprinklerLayer(LayerConfig config, ModIntegrations mods)
+            : base(I18n.Sprinklers_Name(), config)
         {
             // init
             this.Mods = mods;
@@ -77,7 +74,9 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
                     from Vector2 tile in searchTiles
                     where location.objects.ContainsKey(tile)
                     let sprinkler = location.objects[tile]
-                    where sprinkler.IsSprinkler()
+                    where
+                        sprinkler.IsSprinkler()
+                        || (sprinkler.bigCraftable.Value && coverageBySprinklerID.ContainsKey(sprinkler.ParentSheetIndex)) // older custom sprinklers
                     select sprinkler
                 )
                 .ToArray();
@@ -146,10 +145,6 @@ namespace Pathoschild.Stardew.DataLayers.Layers.Coverage
                 foreach (var pair in this.Mods.LineSprinklers.GetSprinklerTiles())
                     tilesBySprinklerID[pair.Key] = pair.Value;
             }
-
-            // Prismatic Tools
-            if (this.Mods.PrismaticTools.IsLoaded)
-                tilesBySprinklerID[this.Mods.PrismaticTools.GetSprinklerID()] = this.Mods.PrismaticTools.GetSprinklerCoverage().ToArray();
 
             // Simple Sprinkler
             if (this.Mods.SimpleSprinkler.IsLoaded)

@@ -13,6 +13,7 @@ using Pathoschild.Stardew.TractorMod.Framework.Config;
 using Pathoschild.Stardew.TractorMod.Framework.ModAttachments;
 using StardewModdingAPI;
 using StardewModdingAPI.Events;
+using StardewModdingAPI.Utilities;
 using StardewValley;
 using StardewValley.Buildings;
 using StardewValley.Characters;
@@ -54,9 +55,6 @@ namespace Pathoschild.Stardew.TractorMod
         /// <summary>A request from a farmhand to warp a tractor to the given player.</summary>
         private readonly string RequestTractorMessageID = "TractorRequest";
 
-        /// <summary>The absolute path to legacy mod data for the current save.</summary>
-        private string LegacySaveDataRelativePath => Path.Combine("data", $"{Constants.SaveFolderName}.json");
-
         /****
         ** State
         ****/
@@ -64,10 +62,13 @@ namespace Pathoschild.Stardew.TractorMod
         private ModConfig Config;
 
         /// <summary>The configured key bindings.</summary>
-        private ModConfigKeys Keys;
+        private ModConfigKeys Keys => this.Config.Controls;
+
+        /// <summary>The backing field for <see cref="TractorManager"/>.</summary>
+        private PerScreen<TractorManager> TractorManagerImpl;
 
         /// <summary>The tractor being ridden by the current player.</summary>
-        private TractorManager TractorManager;
+        private TractorManager TractorManager => this.TractorManagerImpl.Value;
 
         /// <summary>The garage texture to apply.</summary>
         private Texture2D GarageTexture;
@@ -88,11 +89,15 @@ namespace Pathoschild.Stardew.TractorMod
         {
             // read config
             this.Config = helper.ReadConfig<ModConfig>();
-            this.Keys = this.Config.Controls.ParseControls(helper.Input, this.Monitor);
 
             // init
             I18n.Init(helper.Translation);
-            this.TractorManager = new TractorManager(this.Config, this.Keys, this.Helper.Reflection);
+            this.TractorManagerImpl = new(() =>
+            {
+                var manager = new TractorManager(this.Config, this.Keys, this.Helper.Reflection);
+                this.UpdateConfigFor(manager);
+                return manager;
+            });
             this.UpdateConfig();
 
             // hook events
@@ -101,10 +106,10 @@ namespace Pathoschild.Stardew.TractorMod
             events.GameLoop.SaveLoaded += this.OnSaveLoaded;
             events.GameLoop.DayStarted += this.OnDayStarted;
             events.GameLoop.DayEnding += this.OnDayEnding;
-            events.GameLoop.Saving += this.OnSaving;
+            events.GameLoop.Saved += this.OnSaved;
             events.Display.RenderedWorld += this.OnRenderedWorld;
             events.Display.MenuChanged += this.OnMenuChanged;
-            events.Input.ButtonPressed += this.OnButtonPressed;
+            events.Input.ButtonsChanged += this.OnButtonsChanged;
             events.World.NpcListChanged += this.OnNpcListChanged;
             events.World.LocationListChanged += this.OnLocationListChanged;
             events.GameLoop.UpdateTicked += this.OnUpdateTicked;
@@ -155,7 +160,6 @@ namespace Pathoschild.Stardew.TractorMod
             // add Generic Mod Config Menu integration
             new GenericModConfigMenuIntegrationForTractor(
                 getConfig: () => this.Config,
-                getKeys: () => this.Keys,
                 reset: () =>
                 {
                     this.Config = new ModConfig();
@@ -179,8 +183,7 @@ namespace Pathoschild.Stardew.TractorMod
         private void OnSaveLoaded(object sender, SaveLoadedEventArgs e)
         {
             // load legacy data
-            if (Context.IsMainPlayer)
-                this.LoadLegacyData();
+            Migrator.AfterLoad(this.Helper, this.Monitor, this.ModManifest.Version, this.GetBlueprint);
 
             // check if mod should be enabled for the current player
             this.IsEnabled = Context.IsMainPlayer;
@@ -236,7 +239,7 @@ namespace Pathoschild.Stardew.TractorMod
 
                         // normalize tractor
                         if (tractor != null)
-                            tractor.Name = TractorManager.GetTractorName(garage.HorseId);
+                            TractorManager.SetTractorInfo(tractor);
 
                         // apply textures
                         this.ApplyTextures(garage);
@@ -283,7 +286,7 @@ namespace Pathoschild.Stardew.TractorMod
                     foreach (Horse horse in horses)
                     {
                         if (tractorIDs.Contains(horse.HorseId) && !TractorManager.IsTractor(horse))
-                            horse.Name = TractorManager.GetTractorName(horse.HorseId);
+                            TractorManager.SetTractorInfo(horse);
                     }
                 }
             }
@@ -380,25 +383,12 @@ namespace Pathoschild.Stardew.TractorMod
             }
         }
 
-        /// <summary>The event called before the game starts saving.</summary>
+        /// <summary>The event called after the game saves.</summary>
         /// <param name="sender">The event sender.</param>
         /// <param name="e">The event arguments.</param>
-        private void OnSaving(object sender, SavingEventArgs e)
+        private void OnSaved(object sender, SavedEventArgs e)
         {
-            if (!this.IsEnabled)
-                return;
-
-            // host: remove legacy data
-            if (Context.IsMainPlayer)
-            {
-                // remove legacy file (pre-4.6)
-                FileInfo legacyFile = new FileInfo(Path.Combine(this.Helper.DirectoryPath, this.LegacySaveDataRelativePath));
-                if (legacyFile.Exists)
-                    legacyFile.Delete();
-
-                // remove legacy save data (4.6)
-                this.Helper.Data.WriteSaveData<LegacySaveData>("tractors", null);
-            }
+            Migrator.AfterSave();
         }
 
         /// <summary>The event called after the game draws the world to the screen.</summary>
@@ -447,17 +437,17 @@ namespace Pathoschild.Stardew.TractorMod
             }
         }
 
-        /// <summary>The event called when the player presses a keyboard button.</summary>
+        /// <summary>Raised after the player presses any buttons on the keyboard, controller, or mouse.</summary>
         /// <param name="sender">The event sender.</param>
-        /// <param name="e">The event arguments.</param>
-        private void OnButtonPressed(object sender, ButtonPressedEventArgs e)
+        /// <param name="e">The event data.</param>
+        private void OnButtonsChanged(object sender, ButtonsChangedEventArgs e)
         {
             if (!this.IsEnabled || !Context.IsPlayerFree)
                 return;
 
-            if (this.Keys.SummonTractor.JustPressedUnique() && !Game1.player.isRidingHorse())
+            if (this.Keys.SummonTractor.JustPressed() && !Game1.player.isRidingHorse())
                 this.SummonTractor();
-            else if (this.Keys.DismissTractor.JustPressedUnique() && Game1.player.isRidingHorse())
+            else if (this.Keys.DismissTractor.JustPressed() && Game1.player.isRidingHorse())
                 this.DismissTractor(Game1.player.mount);
         }
 
@@ -487,15 +477,22 @@ namespace Pathoschild.Stardew.TractorMod
         /****
         ** Helper methods
         ****/
-        /// <summary>Apply the mod configuration if it changed.</summary>
+        /// <summary>Reapply the mod configuration.</summary>
         private void UpdateConfig()
         {
-            this.Keys = this.Config.Controls.ParseControls(this.Helper.Input, this.Monitor);
+            foreach (var pair in this.TractorManagerImpl.GetActiveValues())
+                this.UpdateConfigFor(pair.Value);
+        }
 
+        /// <summary>Apply the mod configuration to a tractor manager instance.</summary>
+        /// <param name="manager">The tractor manager to update.</param>
+        private void UpdateConfigFor(TractorManager manager)
+        {
             var modRegistry = this.Helper.ModRegistry;
             var reflection = this.Helper.Reflection;
             var toolConfig = this.Config.StandardAttachments;
-            this.TractorManager.UpdateConfig(this.Config, this.Keys, new IAttachment[]
+
+            manager.UpdateConfig(this.Config, this.Keys, new IAttachment[]
             {
                 new CustomAttachment(this.Config.CustomAttachments, modRegistry, reflection), // should be first so it can override default attachments
                 new AxeAttachment(toolConfig.Axe, modRegistry, reflection),
@@ -557,8 +554,8 @@ namespace Pathoschild.Stardew.TractorMod
             // create a tractor if needed
             if (tractor == null && this.Config.CanSummonWithoutGarage && Context.IsMainPlayer)
             {
-                Guid id = Guid.NewGuid();
-                tractor = new Horse(id, 0, 0) { Name = TractorManager.GetTractorName(id) };
+                tractor = new Horse(Guid.NewGuid(), 0, 0);
+                TractorManager.SetTractorInfo(tractor);
                 this.ApplyTextures(tractor);
             }
 
@@ -591,55 +588,6 @@ namespace Pathoschild.Stardew.TractorMod
 
             // warp home
             TractorManager.SetLocation(tractor, location, tile);
-        }
-
-        /// <summary>Migrate tractors and garages from older versions of the mod.</summary>
-        /// <remarks>The Robin construction logic is derived from <see cref="NPC.reloadSprite"/> and <see cref="Farm.resetForPlayerEntry"/>.</remarks>
-        private void LoadLegacyData()
-        {
-            // fix building types
-            foreach (BuildableGameLocation location in this.GetBuildableLocations())
-            {
-                foreach (Stable stable in location.buildings.OfType<Stable>())
-                {
-                    if (stable.buildingType.Value == this.BlueprintBuildingType)
-                    {
-                        stable.buildingType.Value = "Stable";
-                        stable.maxOccupants.Value = this.MaxOccupantsID;
-                    }
-                }
-            }
-
-            // get save data
-            LegacySaveData saveData = this.Helper.Data.ReadSaveData<LegacySaveData>("tractors"); // 4.6
-            if (saveData?.Buildings == null)
-                saveData = this.Helper.Data.ReadJsonFile<LegacySaveData>(this.LegacySaveDataRelativePath); // pre-4.6
-            if (saveData?.Buildings == null)
-                return;
-
-            // add tractor + garages
-            BuildableGameLocation[] locations = this.GetBuildableLocations().ToArray();
-            foreach (LegacySaveDataBuilding garageData in saveData.Buildings)
-            {
-                // get location
-                BuildableGameLocation location = locations.FirstOrDefault(p => p.NameOrUniqueName == (garageData.Map ?? "Farm"));
-                if (location == null)
-                {
-                    this.Monitor.Log($"Ignored legacy tractor garage in unknown location '{garageData.Map}'.", LogLevel.Warn);
-                    continue;
-                }
-
-                // add garage
-                Stable garage = location.buildings.OfType<Stable>().FirstOrDefault(p => p.tileX.Value == (int)garageData.Tile.X && p.tileY.Value == (int)garageData.Tile.Y);
-                if (garage == null)
-                {
-                    garage = new Stable(garageData.TractorID, this.GetBlueprint(), garageData.Tile);
-                    garage.daysOfConstructionLeft.Value = 0;
-                    location.buildings.Add(garage);
-                }
-                garage.maxOccupants.Value = this.MaxOccupantsID;
-                garage.load();
-            }
         }
 
         /// <summary>Get all available locations.</summary>

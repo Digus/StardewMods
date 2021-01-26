@@ -1,5 +1,5 @@
 using Microsoft.Xna.Framework;
-using Pathoschild.Stardew.Common.Input;
+using StardewModdingAPI.Utilities;
 using StardewValley;
 
 namespace Pathoschild.Stardew.DataLayers.Framework
@@ -10,6 +10,9 @@ namespace Pathoschild.Stardew.DataLayers.Framework
         /*********
         ** Accessors
         *********/
+        /// <summary>A unique identifier for the layer.</summary>
+        string Id { get; }
+
         /// <summary>The layer display name.</summary>
         string Name { get; }
 
@@ -23,7 +26,7 @@ namespace Pathoschild.Stardew.DataLayers.Framework
         LegendEntry[] Legend { get; }
 
         /// <summary>The keys which activate the layer.</summary>
-        KeyBinding ShortcutKey { get; }
+        KeybindList ShortcutKey { get; }
 
         /// <summary>Whether to always show the tile grid.</summary>
         bool AlwaysShowGrid { get; }

@@ -1,4 +1,4 @@
-← [README](../README.md)
+﻿← [README](../README.md)
 
 This document helps mod authors create a content pack for Content Patcher.
 
@@ -1157,6 +1157,12 @@ Example Content Pack:
       asset name                | changes
       ------------------------- | -------
       TerrainFeatures/tree_palm | edited image
+```
+
+You can also optionally specify one or more content pack IDs, in which case it'll only show patches for those
+content packs:
+```
+> patch summary "LemonEx.HobbitHouse" "Another.Content.Pack"
 ```
 
 #### patch update

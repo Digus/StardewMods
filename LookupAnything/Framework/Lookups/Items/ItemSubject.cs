@@ -19,6 +19,7 @@ using StardewValley.GameData.FishPond;
 using StardewValley.GameData.Movies;
 using StardewValley.Locations;
 using StardewValley.Objects;
+using StardewValley.TerrainFeatures;
 using SObject = StardewValley.Object;
 
 namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
@@ -38,6 +39,9 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
         /// <summary>The crop which will drop the item (if applicable).</summary>
         private readonly Crop FromCrop;
 
+        /// <summary>The dirt containing the crop (if applicable).</summary>
+        private readonly HoeDirt FromDirt;
+
         /// <summary>The crop grown by this seed item (if applicable).</summary>
         private readonly Crop SeedForCrop;
 
@@ -53,14 +57,18 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
         /// <summary>Whether to highlight item gift tastes which haven't been revealed in the NPC profile.</summary>
         private readonly bool HighlightUnrevealedGiftTastes;
 
+        /// <summary>Provides subject entries.</summary>
+        private readonly ISubjectRegistry Codex;
+
         /// <summary>Get a lookup subject for a crop.</summary>
-        private readonly Func<Crop, ObjectContext, ISubject> GetCropSubject;
+        private readonly Func<Crop, ObjectContext, HoeDirt, ISubject> GetCropSubject;
 
 
         /*********
         ** Public methods
         *********/
         /// <summary>Construct an instance.</summary>
+        /// <param name="codex">Provides subject entries</param>
         /// <param name="gameHelper">Provides utility methods for interacting with the game code.</param>
         /// <param name="progressionMode">Whether to only show content once the player discovers it.</param>
         /// <param name="highlightUnrevealedGiftTastes">Whether to highlight item gift tastes which haven't been revealed in the NPC profile.</param>
@@ -69,15 +77,19 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
         /// <param name="knownQuality">Whether the item quality is known. This is <c>true</c> for an inventory item, <c>false</c> for a map object.</param>
         /// <param name="getCropSubject">Get a lookup subject for a crop.</param>
         /// <param name="fromCrop">The crop associated with the item (if applicable).</param>
-        public ItemSubject(GameHelper gameHelper, bool progressionMode, bool highlightUnrevealedGiftTastes, Item item, ObjectContext context, bool knownQuality, Func<Crop, ObjectContext, ISubject> getCropSubject, Crop fromCrop = null)
+        /// <param name="fromDirt">The dirt containing the crop (if applicable).</param>
+        public ItemSubject(ISubjectRegistry codex, GameHelper gameHelper, bool progressionMode, bool highlightUnrevealedGiftTastes, Item item, ObjectContext context, bool knownQuality, Func<Crop, ObjectContext, HoeDirt, ISubject> getCropSubject, Crop fromCrop = null, HoeDirt fromDirt = null)
             : base(gameHelper)
         {
+            this.Codex = codex;
             this.ProgressionMode = progressionMode;
             this.HighlightUnrevealedGiftTastes = highlightUnrevealedGiftTastes;
             this.Target = item;
             this.DisplayItem = this.GetMenuItem(item);
-            this.FromCrop = fromCrop;
-            if ((item as SObject)?.Type == "Seeds" && fromCrop == null) // fromCrop == null to exclude planted coffee beans
+            this.FromCrop = fromCrop ?? fromDirt?.crop;
+            this.FromDirt = fromDirt;
+
+            if ((item as SObject)?.Type == "Seeds" && this.FromCrop == null) // fromCrop == null to exclude unplanted coffee beans
                 this.SeedForCrop = new Crop(item.ParentSheetIndex, 0, 0);
             this.Context = context;
             this.KnownQuality = knownQuality;
@@ -119,7 +131,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
             }
 
             // crop fields
-            foreach (ICustomField field in this.GetCropFields(this.FromCrop ?? this.SeedForCrop, isSeed))
+            foreach (ICustomField field in this.GetCropFields(this.FromDirt, this.FromCrop ?? this.SeedForCrop, isSeed))
                 yield return field;
 
             // indoor pot crop
@@ -129,7 +141,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
                 if (potCrop != null)
                 {
                     Item drop = this.GameHelper.GetObjectBySpriteIndex(potCrop.indexOfHarvest.Value);
-                    yield return new LinkField(I18n.Item_Contents(), drop.DisplayName, () => this.GetCropSubject(potCrop, ObjectContext.World));
+                    yield return new LinkField(I18n.Item_Contents(), drop.DisplayName, () => this.GetCropSubject(potCrop, ObjectContext.World, pot.hoeDirt.Value));
                 }
             }
 
@@ -310,7 +322,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
             if (seeAlsoCrop)
             {
                 Item drop = this.GameHelper.GetObjectBySpriteIndex(this.SeedForCrop.indexOfHarvest.Value);
-                yield return new LinkField(I18n.Item_SeeAlso(), drop.DisplayName, () => this.GetCropSubject(this.SeedForCrop, ObjectContext.Inventory));
+                yield return new LinkField(I18n.Item_SeeAlso(), drop.DisplayName, () => this.GetCropSubject(this.SeedForCrop, ObjectContext.Inventory, null));
             }
         }
 
@@ -401,14 +413,16 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
         }
 
         /// <summary>Get the custom fields for a crop.</summary>
+        /// <param name="dirt">The dirt the crop is planted in, if applicable.</param>
         /// <param name="crop">The crop to represent.</param>
         /// <param name="isSeed">Whether the crop being displayed is for an unplanted seed.</param>
-        private IEnumerable<ICustomField> GetCropFields(Crop crop, bool isSeed)
+        private IEnumerable<ICustomField> GetCropFields(HoeDirt dirt, Crop crop, bool isSeed)
         {
             if (crop == null)
                 yield break;
 
             var data = new CropDataParser(crop, isPlanted: !isSeed);
+            bool isForage = crop.whichForageCrop.Value > 0 && crop.fullyGrown.Value; // show crop fields for growing mixed seeds
 
             // add next-harvest field
             if (!isSeed)
@@ -429,7 +443,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
             }
 
             // crop summary
-            if (crop.whichForageCrop.Value <= 0)
+            if (!isForage)
             {
                 List<string> summary = new List<string>();
 
@@ -457,6 +471,33 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
 
                 // generate field
                 yield return new GenericField(I18n.Crop_Summary(), "-" + string.Join($"{Environment.NewLine}-", summary));
+            }
+
+            // dirt water/fertilizer state
+            if (dirt != null && !isForage)
+            {
+                // watered
+                yield return new GenericField(I18n.Crop_Watered(), this.Stringify(dirt.state.Value == HoeDirt.watered));
+
+                // fertilizer
+                yield return new GenericField(I18n.Crop_Fertilized(), dirt.fertilizer.Value switch
+                {
+                    HoeDirt.noFertilizer => this.Stringify(false),
+
+                    HoeDirt.speedGro => GameI18n.GetObjectName(465), // Speed-Gro
+                    HoeDirt.superSpeedGro => GameI18n.GetObjectName(466), // Deluxe Speed-Gro
+                    HoeDirt.hyperSpeedGro => GameI18n.GetObjectName(918), // Hyper Speed-Gro
+
+                    HoeDirt.fertilizerLowQuality => GameI18n.GetObjectName(368), // Basic Fertilizer
+                    HoeDirt.fertilizerHighQuality => GameI18n.GetObjectName(369), // Quality Fertilizer
+                    HoeDirt.fertilizerDeluxeQuality => GameI18n.GetObjectName(919), // Deluxe Fertilizer
+
+                    HoeDirt.waterRetentionSoil => GameI18n.GetObjectName(370), // Basic Retaining Soil
+                    HoeDirt.waterRetentionSoilQuality => GameI18n.GetObjectName(371), // Quality Retaining Soil
+                    HoeDirt.waterRetentionSoilDeluxe => GameI18n.GetObjectName(920), // Deluxe Retaining Soil
+
+                    _ => I18n.Generic_Unknown()
+                });
             }
         }
 
@@ -498,7 +539,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
                         .ToArray();
 
                     // display fields
-                    yield return new ItemIconField(this.GameHelper, I18n.Item_Contents(), heldObj);
+                    yield return new ItemIconField(this.GameHelper, I18n.Item_Contents(), heldObj, this.Codex);
                     if (minutesLeft <= 0 || !schedule.Any())
                         yield return new GenericField(I18n.Item_CaskSchedule(), I18n.Item_CaskSchedule_Now(quality: I18n.For(curQuality)));
                     else
@@ -520,7 +561,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
                 if (heldObj == null)
                 {
                     if (pot.bait.Value != null)
-                        yield return new ItemIconField(this.GameHelper, I18n.Item_CrabpotBait(), pot.bait.Value);
+                        yield return new ItemIconField(this.GameHelper, I18n.Item_CrabpotBait(), pot.bait.Value, this.Codex);
                     else if (Game1.player.professions.Contains(11)) // no bait needed if luremaster
                         yield return new GenericField(I18n.Item_CrabpotBait(), I18n.Item_CrabpotBaitNotNeeded());
                     else
@@ -531,7 +572,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
                 if (heldObj != null)
                 {
                     string summary = I18n.Item_Contents_Ready(name: heldObj.DisplayName);
-                    yield return new ItemIconField(this.GameHelper, I18n.Item_Contents(), heldObj, summary);
+                    yield return new ItemIconField(this.GameHelper, I18n.Item_Contents(), heldObj, this.Codex, summary);
                 }
             }
 
@@ -542,7 +583,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
                 if (heldObj != null)
                 {
                     string summary = I18n.Item_Contents_Placed(name: heldObj.DisplayName);
-                    yield return new ItemIconField(this.GameHelper, I18n.Item_Contents(), heldObj, summary);
+                    yield return new ItemIconField(this.GameHelper, I18n.Item_Contents(), heldObj, this.Codex, summary);
                 }
             }
 
@@ -563,7 +604,7 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
                     string summary = minutesLeft <= 0
                     ? I18n.Item_Contents_Ready(name: heldObj.DisplayName)
                     : I18n.Item_Contents_Partial(name: heldObj.DisplayName, time: this.Stringify(TimeSpan.FromMinutes(minutesLeft)));
-                    yield return new ItemIconField(this.GameHelper, I18n.Item_Contents(), heldObj, summary);
+                    yield return new ItemIconField(this.GameHelper, I18n.Item_Contents(), heldObj, this.Codex, summary);
                 }
             }
         }
@@ -755,7 +796,13 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
         {
             CommunityCenter communityCenter = Game1.locations.OfType<CommunityCenter>().First();
 
-            return !communityCenter.bundles[bundle.ID][ingredient.Index];
+            // handle rare edge case where item is required in the bundle data, but it's not
+            // present in the community center data. This seems to be caused by some mods like
+            // Challenging Community Center Bundles in some cases.
+            if (!communityCenter.bundles.TryGetValue(bundle.ID, out bool[] items) || ingredient.Index >= items.Length)
+                return true; 
+
+            return !items[ingredient.Index];
         }
 
         /// <summary>Get the number of an ingredient needed for a bundle.</summary>
@@ -763,7 +810,8 @@ namespace Pathoschild.Stardew.LookupAnything.Framework.Lookups.Items
         /// <param name="item">The ingredient to check.</param>
         private int GetIngredientCountNeeded(BundleModel bundle, SObject item)
         {
-            return this.GetIngredientsFromBundle(bundle, item)
+            return this
+                .GetIngredientsFromBundle(bundle, item)
                 .Where(p => this.IsIngredientNeeded(bundle, p))
                 .Sum(p => p.Stack);
         }

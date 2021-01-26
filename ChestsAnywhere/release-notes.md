@@ -1,6 +1,54 @@
-[← back to readme](README.md)
+﻿[← back to readme](README.md)
 
 # Release notes
+## Upcoming release
+* Fixed controller interaction issues after 1.20.6.
+* Fixed toggle key closing the menu while typing into another mod's textbox.
+* Improved translations. Thanks to Kareolis (updated Russian)!
+
+## 1.20.6
+Released 23 January 2021.
+
+* Updated for multi-key bindings in SMAPI 3.9.
+* Improved Automate options UI.
+* Fixed toggle key not closing the menu.
+
+## 1.20.5
+Released 18 January 2021.
+
+* Fixed dresser options broken in 1.20.4.
+
+## 1.20.4
+Released 17 January 2021.
+
+* Rewrote how older chest data is migrated for compatibility with Expanded Storage.
+
+## 1.20.3
+Released 16 January 2021.
+
+* Updated chest options for Automate 1.20.
+* Fixed fish tanks showing dresser UI when opened remotely.
+* Improved translations. Thanks to LeecanIt (updated Italian)!
+
+## 1.20.2
+Released 10 January 2021.
+
+* Fixed support for fridges in some custom farmhouse maps.
+* Fixed default names for custom chest types.
+* Fixed dressers placed outside cabins/farmhouses/sheds not listed in the menu.
+* Fixed more cases where a Junimo chest wasn't matched correctly.
+
+## 1.20.1
+Released 05 January 2021.
+
+* Fixed issues related to Junimo chests and main shipping bins (which have shared inventories):
+  * Fixed which one you opened not always tracked correctly.
+  * Fixed dropdown always selecting the first chest of that type when you click a different one of that type.
+  * Fixed Junimo chests not always listed separately.
+  * Fixed named Junimo chests sometimes showing the label from another Junimo chest.
+* Fixed mini-fridge options sometimes reset on load.
+* Fixed dropdown height not correctly accounting for UI scale.
+
 ## 1.20
 Released 21 December 2020.
 

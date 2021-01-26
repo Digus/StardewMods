@@ -1,6 +1,31 @@
-# Release notes
-## Upcoming release
+﻿# Release notes
+## 4.13.2
+Released 23 January 2021.
+
+* Updated for multi-key bindings in SMAPI 3.9.
+
+## 4.13.1
+Released 17 January 2021.
+
+* Fixed issues when farmhands ride tractors in split-screen mode.
+
+## 4.13
+Released 16 January 2021.
+
+* The watering can now cools lava in the volcano dungeon.
+* Fixed tractor affecting other players' tools in split-screen mode.
+
+## 4.12.2
+Released 04 January 2021.
+
+* Updated to use `modData` field in Stardew Valley 1.5.
+* Internal refactoring to legacy data migrations.
 * Fixed tractor not summonable if it's currently in the volcano dungeon.
+
+**Note for mod authors:**
+* Tractor Mod previously identified horses by setting their name to `tractor/<horse id>`. It still
+  sets the name, but it now identifies horses by adding a `Pathoschild.TractorMod` entry to the new
+  `horse.modData` field instead. Existing tractors will be migrated automatically.
 
 ## 4.12.1
 Released 21 December 2020.
