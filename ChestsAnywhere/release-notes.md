@@ -2,8 +2,26 @@
 
 # Release notes
 ## Upcoming release
-* Fixed controller interaction issues after 1.20.6.
-* Fixed toggle key closing the menu while typing into another mod's textbox.
+* Fixed error opening dressers in rare cases.
+* Improved translations. Thanks to derJuba007 (updated German), horizon98 (updated Chinese), and zNatural (updated Spanish)!
+
+## 1.20.9
+Released 06 February 2021.
+
+* Fixed exit keys not working after editing a textbox option and closing the edit UI.
+* Fixed textboxes not deselected when you click outside them.
+* Improved translations. Thanks to carloshbcabral (updated Portuguese) and Treize-Chronos (updated French)!
+
+## 1.20.8
+Released 26 January 2021.
+
+* Fixed pressing `e` always closing the menu after 1.20.6. It should now match the previous behavior.
+
+## 1.20.7
+Released 25 January 2021.
+
+* Fixed controller issues in 1.20.6.
+* Fixed toggle key closing the menu even if you're typing into another mod's textbox.
 * Improved translations. Thanks to Kareolis (updated Russian)!
 
 ## 1.20.6

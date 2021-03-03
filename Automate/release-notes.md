@@ -2,6 +2,14 @@
 
 # Release notes
 ## Upcoming release
+* Trees that aren't full-grown are no longer automated, to avoid accidental machine links due to spreading seeds.
+
+## 1.21
+Released 06 February 2021.
+
+* Added tree automation to collect seeds, golden coconuts, and Qi beans.
+* You can now use furniture and floor dividers as connectors.
+* Fixed tea bushes in garden pots not automated.
 * Fixed bushes producing berries out of season once immediately after loading the save.
 
 ## 1.20.1

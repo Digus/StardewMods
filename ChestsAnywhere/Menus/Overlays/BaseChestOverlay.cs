@@ -333,17 +333,13 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
 
             // check for textbox focus
             bool anyTextboxSelected = Game1.game1.HasKeyboardFocus() && Game1.game1.instanceKeyboardDispatcher?.Subscriber != null;
-            bool ownTextboxSelected = anyTextboxSelected && this.ManagedTextboxes.Any(p => p.Selected);
 
             // handle keys
-            bool canNavigate = this.CanCloseChest;
+            bool canNavigate = this.CanCloseChest && !anyTextboxSelected;
             ModConfigKeys keys = this.Keys;
             switch (this.ActiveElement)
             {
                 case Element.Menu:
-                    if (anyTextboxSelected)
-                        return;
-
                     if (keys.Toggle.JustPressed() || this.EscapeKeybind.JustPressed())
                     {
                         this.InputHelper.SuppressActiveKeybinds(keys.Toggle);
@@ -364,19 +360,29 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
                         this.OpenEdit();
                     else if (keys.SortItems.JustPressed())
                         this.SortInventory();
+                    else
+                        return; // don't suppress if the key wasn't handled
+
+                    this.SuppressAll(e.Pressed);
                     break;
 
                 case Element.ChestList:
                 case Element.CategoryList:
                 case Element.EditForm:
-                    if (this.EscapeKeybind.JustPressed() && (!anyTextboxSelected || ownTextboxSelected))
-                    {
-                        this.InputHelper.SuppressActiveKeybinds(this.EscapeKeybind);
-
+                    if (this.EscapeKeybind.JustPressed())
                         this.ActiveElement = Element.Menu;
-                    }
+
+                    this.SuppressAll(e.Pressed); // always suppress in this context
                     break;
             }
+        }
+
+        /// <summary>Suppress all pressed buttons.</summary>
+        /// <param name="buttons">The buttons to suppress.</param>
+        protected void SuppressAll(IEnumerable<SButton> buttons)
+        {
+            foreach (SButton button in buttons)
+                this.InputHelper.Suppress(button);
         }
 
         /// <summary>The method invoked when the player scrolls the dropdown using the mouse wheel.</summary>
@@ -439,17 +445,11 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
             {
                 // edit form
                 case Element.EditForm:
-                    // name field
-                    if (this.EditNameField.GetBounds().Contains(x, y))
-                        this.EditNameField.Select();
-
-                    // category field
-                    else if (this.EditCategoryField.GetBounds().Contains(x, y))
-                        this.EditCategoryField.Select();
-
-                    // order field
-                    else if (this.EditOrderField.GetBounds().Contains(x, y))
-                        this.EditOrderField.Select();
+                    // textboxes
+                    if (this.TryClickTextbox(x, y))
+                    {
+                        // handled internally
+                    }
 
                     // checkbox
                     else if (this.EditHideChestField.GetBounds().Contains(x, y))
@@ -708,6 +708,10 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
                 if (this.CategoryDropdown != null)
                     this.CategoryDropdown.IsExpanded = false;
             }
+
+            // deselect textboxes
+            if (value != Element.EditForm)
+                this.DeselectManagedTextboxes();
         }
 
         /// <summary>Exit the chest menu.</summary>
@@ -715,6 +719,35 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
         {
             this.Dispose();
             this.Menu.exitThisMenu();
+        }
+
+        /// <summary>Update textboxes on the edit form for a click, if applicable.</summary>
+        /// <param name="x">The X-position of the cursor.</param>
+        /// <param name="y">The Y-position of the cursor.</param>
+        /// <returns>Returns whether a textbox was clicked.</returns>
+        private bool TryClickTextbox(int x, int y)
+        {
+            if (this.ActiveElement != Element.EditForm)
+                return false;
+
+            // select textbox
+            foreach (ValidatedTextBox textbox in this.ManagedTextboxes)
+            {
+                if (!textbox.GetBounds().Contains(x, y))
+                    continue;
+
+                if (!textbox.Selected)
+                {
+                    this.DeselectManagedTextboxes();
+                    textbox.Select();
+                }
+
+                return true;
+            }
+
+            // else deselect any current textbox
+            this.DeselectManagedTextboxes();
+            return false;
         }
 
         /// <summary>Get the index of a chest in the selected category.</summary>
@@ -783,6 +816,13 @@ namespace Pathoschild.Stardew.ChestsAnywhere.Menus.Overlays
         /// <summary>Set whether the chest or inventory items should be clickable.</summary>
         /// <param name="clickable">Whether items should be clickable.</param>
         protected abstract void SetItemsClickable(bool clickable);
+
+        /// <summary>Deselect textboxes managed by Chests Anywhere.</summary>
+        private void DeselectManagedTextboxes()
+        {
+            foreach (ValidatedTextBox textbox in this.ManagedTextboxes)
+                textbox.Selected = false;
+        }
 
         /// <summary>Draw a checkbox to the screen, including any position updates needed.</summary>
         /// <param name="batch">The sprite batch being drawn.</param>

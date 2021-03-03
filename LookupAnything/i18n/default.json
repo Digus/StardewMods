@@ -382,6 +382,7 @@
     "item.needed-for.full-collection": "full collection achievement (donate one to museum)",
     "item.needed-for.gourmet-chef": "gourmet chef achievement (cook {{recipes}})",
     "item.needed-for.craft-master": "craft master achievement (make {{recipes}})",
+    "item.needed-for.quests": "current quests ({{quests}})",
     "item.sells-to.shipping-box": "shipping box",
     "item.recipes-for-ingredient.entry": "{{name}} (needs {{count}})",
     "item.recipes-for-machine.multiple-items": "{{name}} x{{count}}",
@@ -664,7 +665,7 @@
     "tree.name.unknown": "Unknown Tree",
     "tree.stage.done": "Fully grown",
     "tree.stage.partial": "{{stageName}} ({{step}} of {{max}})",
-    "tree.next-growth.winter": "can't grow in winter outside greenhouse",
+    "tree.next-growth.winter": "can't grow in winter outside greenhouse unless fertilized",
     "tree.next-growth.adjacent-trees": "can't grow because other trees are too close",
     "tree.next-growth.chance": "{{chance}}% chance to grow into {{stage}} tomorrow",
 

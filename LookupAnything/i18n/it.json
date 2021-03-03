@@ -381,6 +381,7 @@
     "item.needed-for.full-collection": "l'achievement 'collezione completa' (donane ancora uno al museo)",
     "item.needed-for.gourmet-chef": "l'achievement 'chef da gourmet' (cucina {{recipes}})",
     "item.needed-for.craft-master": "l'achievement 'maestro della fabbricazione' (crea {{recipes}})",
+    "item.needed-for.quests": "current quests ({{quests}})", // TODO
     "item.sells-to.shipping-box": "Cassetta delle spedizioni",
     "item.recipes-for-ingredient.entry": "{{name}} ({{count}} necessari)",
     "item.recipes-for-machine.multiple-items": "{{name}} x{{count}}",
@@ -609,9 +610,9 @@
     *********/
     // labels
     "puzzle.island-shrine.title": "Puzzle del Reliquiario sull'Isola",
-    "puzzle.island-shrine.description": "Per ogni piedistallo, posiziona l'oggetto lasciato dagli uccelli gemma nel luogo dell'isola corrispondente quando piove. Gli oggetti sono casuali per ogni salvataggio.",
 
     // values
+    "puzzle.island-shrine.solution": "Per ogni piedistallo, posiziona l'oggetto lasciato dagli uccelli gemma nel luogo dell'isola corrispondente quando piove. Gli oggetti sono casuali per ogni salvataggio.",
     "puzzle.island-shrine.solution.east": "Est: {{item}}",
     "puzzle.island-shrine.solution.north": "Nord: {{item}}",
     "puzzle.island-shrine.solution.south": "Sud: {{item}}",
@@ -663,7 +664,7 @@
     "tree.name.unknown": "Albero Sconosciuto",
     "tree.stage.done": "Completamente cresciuto",
     "tree.stage.partial": "{{stageName}} ({{step}} di {{max}})",
-    "tree.next-growth.winter": "non può crescere fuori da una serra in inverno",
+    "tree.next-growth.winter": "non può crescere fuori da una serra in inverno se non fertilizzata",
     "tree.next-growth.adjacent-trees": "non può crescere perchè gli altri alberi sono troppo vicini",
     "tree.next-growth.chance": "{{chance}}% probabilità di diventare un '{{stage}}' domani",
 
